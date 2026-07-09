@@ -1,6 +1,6 @@
 # PROJ-4: Verein-Verwaltung & Voreinstellungen (Tab-Namen)
 
-## Status: In Progress
+## Status: Approved
 **Created:** 2026-07-09
 **Last Updated:** 2026-07-09
 
@@ -161,7 +161,77 @@ Vereinseinstellungen-Seite "/voreinstellung" (neu)
 **Verifiziert:** Policy-Struktur nach Anwendung beider Migrationen per SQL-Introspektion bestätigt (`vereine`: 1× UPDATE; `storage.objects`: INSERT/SELECT/UPDATE). Logo-Upload vom User live bestätigt. Ein automatisierter End-to-End-Test mit echter Werteänderung an Textfeldern (Tab-Name ändern → speichern → zurücksetzen) wurde vom User abgelehnt, da er das lieber selbst manuell verifiziert (Live-Produktivdaten) — offen bis zur manuellen Bestätigung durch den User bzw. bis `/qa`.
 
 ## QA Test Results
-_To be added by /qa_
+
+**Tested:** 2026-07-09
+**App URL:** http://localhost:3000 (Production-Build via `npm run build && npm run start`, gegen die echte Supabase-Instanz `cspljbavgdnsqlqkdxvc`)
+**Tester:** QA Engineer (AI)
+
+**Testdaten:** 2 isolierte, disponible Test-Vereine ("QA-Test Verein A" / "QA-Test Verein B") mit je einem Test-Admin-Account (über den echten `/register`-Flow angelegt, `admin` per SQL gesetzt) sowie ein Nicht-Admin-Testmitglied in Verein A — mit expliziter User-Freigabe angelegt und nach Abschluss vollständig entfernt (verifiziert: 0 verbleibende Zeilen in `vereine`/`users`/`auth.users`/`storage.objects`).
+
+**Hinweis Testumgebung:** Der Dev-Server (Turbopack) zeigte unter vielen parallelen Playwright-Sessions sporadisch `ERR_CONTENT_LENGTH_MISMATCH`/`ChunkLoadError` (bekannte Turbopack-Dev-Instabilität unter Windows, kein App-Bug — `npm run build` lief davor bereits sauber durch). Für einen stabilen Testlauf wurde auf den Production-Build umgeschaltet; danach traten keine solchen Fehler mehr auf.
+
+### Acceptance Criteria Status
+
+- [x] Admin sieht Link "Vereinseinstellungen" auf der Startseite, Mitglied nicht
+- [x] `/voreinstellung` lädt vorausgefüllt mit den echten Werten des eigenen Vereins (Vereinsname, Tab-Namen, Freischaltcode)
+- [x] Nicht-Admin wird bei direktem Aufruf von `/voreinstellung` sofort zu "/" umgeleitet (sowohl für Mitglieder des eigenen als auch — implizit über RLS — jedes anderen Vereins)
+- [x] Speichern von geändertem Vereinsnamen + leerem Tab-Feld + neuem Logo gelingt und ist nach Reload persistent (Logo-URL zeigt auf die echte Supabase-Storage-Public-URL, nicht auf eine lokale Blob-URL)
+- [x] Leeres Tab-Feld wird ohne Fehlermeldung übernommen (kein Pflichtfeld)
+- [x] Leerer Vereinsname zeigt Validierungsfehler, kein Speichern
+- [x] Gültige Logo-Datei zeigt Vorschau vor dem Speichern
+- [x] Ungültiges Dateiformat beim Logo-Upload wird abgelehnt
+- [x] Freischaltcode-Änderung zeigt Bestätigungsdialog vor dem Speichern
+- [x] Abbrechen des Dialogs speichert nichts, Formular behält die Eingabe
+- [x] Bestätigen des Dialogs speichert den neuen Code — **end-to-end mit der echten Registrierungs-API verifiziert:** alter Code wird mit `invalid_code` (400) abgelehnt, neuer Code funktioniert (201)
+- [x] Nicht erreichbare API beim Speichern zeigt Fehlermeldung, Eingaben bleiben erhalten (per Route-Interception simuliert)
+- [x] Admin sieht/speichert ausschließlich Daten des eigenen Vereins (siehe Security Audit)
+
+**13/13 Akzeptanzkriterien bestanden.**
+
+### Edge Cases Status
+- [x] Zwei Admins bearbeiten gleichzeitig — Last-Write-Wins ist Architekturentscheidung, kein Locking erwartet, nicht separat life-getestet (kein beobachtbares Fehlverhalten in Einzelsitzungen)
+- [x] Freischaltcode-Dialog abgebrochen trotz weiterer geänderter Felder → nichts gespeichert (verifiziert)
+- [x] Ungültiges/zu großes Logo-Dateiformat → Fehlermeldung, alter Wert bleibt (verifiziert für Dateityp; Größenprüfung ist identische Code-Pfad-Logik, nicht separat mit einer >2MB-Datei life-getestet)
+- [x] Direkter URL-Aufruf durch Mitglied → Redirect (verifiziert)
+- [ ] Ungespeicherte Änderungen beim Verlassen der Seite: bewusst kein Warnhinweis im MVP (siehe Spec) — nicht separat getestet, da explizit Out-of-Scope-Verhalten
+
+### Security Audit Results
+- [x] **Cross-Tenant-Isolation (Kernversprechen des Projekts):** Admin von Verein A kann Verein B per direktem REST-Call mit eigenem JWT **nicht** überschreiben (0 betroffene Zeilen); per Service-Role gegengeprüft, dass Verein B tatsächlich unverändert blieb
+- [x] Unauthentifizierter Zugriff (nur anon key) kann `vereine` nicht per PATCH ändern (0 Zeilen)
+- [x] Eingeloggtes Nicht-Admin-Mitglied kann die `vereine`-Zeile des **eigenen** Vereins nicht ändern (RLS verlangt `admin = true`, 0 Zeilen)
+- [x] XSS/Injection: `<script>window.__xss=1</script>"'--` als Vereinsname gespeichert und ausgelesen — wird von React als reiner Text escaped, kein Skript ausgeführt, kein DB-Fehler
+- [x] Storage-Upload-Policies (INSERT/SELECT/UPDATE) korrekt auf `vereine/{eigene-verein-id}-*` gescoped — die neue RLS-UPDATE-Policy auf `vereine` und die Storage-Policies wurden vor dieser QA bereits root-cause-diagnostiziert und gefixt (fehlende SELECT-Policy für `upsert`, siehe Backend Implementation Notes)
+- [~] Rate-Limiting: nicht gesondert getestet (verlässt sich wie PROJ-3 bewusst auf Supabase-Standardlimits, keine eigene Implementierung laut Architektur)
+
+### Cross-Browser & Responsive
+- [x] Chromium: alle Funktionstests bestanden
+- [x] WebKit: Einstellungsseite lädt korrekt mit Daten, keine Konsolenfehler
+- [~] Firefox: Einstellungsseite lädt korrekt mit Daten; ein Konsolen-Eintrag `Cookie "__cf_bm" has been rejected for invalid domain.` beim Laden des Logo-Bilds — stammt vom Cloudflare-Bot-Management-Cookie vor Supabase Storage, kein App-Fehler, keine funktionale Auswirkung (siehe BUG-1, informativ)
+- [x] Responsive 375px/768px/1440px: Layout bricht nicht, Formular bleibt bedienbar (Screenshots geprüft)
+
+### Regression Testing
+- `npm test` (Vitest): 5/5 bestanden
+- `npm run test:e2e` (Playwright, bestehende PROJ-3-Suite): 11/12 bestanden. Der eine Fehlschlag (`AC: ungültiger Freischaltcode zeigt Fehlermeldung`, Mobile Safari/WebKit) ist **BUG-2 aus PROJ-3** (bereits dokumentiert, vorbestehend, nicht durch PROJ-4 verursacht) — alle Chromium-Tests liefen sauber, keine neue Regression durch PROJ-4
+
+### Bugs Found
+
+#### BUG-1: Firefox-Konsolenwarnung beim Laden von Supabase-Storage-Bildern (Cloudflare-Cookie)
+- **Severity:** Low (informativ, kein funktionaler Fehler)
+- **Steps to Reproduce:**
+  1. `/voreinstellung` in Firefox mit einem Verein öffnen, das ein Logo aus Supabase Storage lädt
+  2. Konsole prüfen
+  3. Erwartet: keine Warnung
+  4. Tatsächlich: `Cookie "__cf_bm" has been rejected for invalid domain.` erscheint — das Bild lädt trotzdem korrekt, keine sichtbare Auswirkung
+- **Root Cause:** Cloudflare (vor Supabase Storage) setzt ein Bot-Management-Cookie auf die Bild-Antwort; Firefox validiert Cookie-Domains strenger als Chromium/WebKit und loggt eine Konsolenwarnung. Liegt außerhalb der App-Kontrolle (Supabase/Cloudflare-Infrastruktur)
+- **Priority:** Nice to have / kein Fix nötig
+
+### Summary
+- **Acceptance Criteria:** 13/13 bestanden
+- **Bugs Found:** 1 total (0 Critical, 0 High, 0 Medium, 1 Low — informativ, kein App-Fehler)
+- **Security:** Pass — Cross-Tenant-Isolation, Admin-Only-Schreibzugriff und XSS-Schutz alle verifiziert
+- **Regressions:** Keine neuen Regressionen; ein vorbestehender PROJ-3-Bug (BUG-2, WebKit-spezifisch) bleibt unverändert bestehen
+- **Production Ready:** YES
+- **Recommendation:** Deploy möglich. BUG-1 ist rein informativ und erfordert keine Code-Änderung.
 
 ## Deployment
 _To be added by /deploy_
