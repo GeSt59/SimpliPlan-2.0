@@ -19,7 +19,7 @@ Bei trivialen Aufgaben ist Urteilsvermögen gefragt.
 - **Framework:** Next.js 16 (App Router), TypeScript
 - **Styling:** Tailwind CSS + shadcn/ui (copy-paste components)
 - **Backend:** Supabase (PostgreSQL + Auth + Storage) - optional
-- **Deployment:** Vercel
+- **Deployment:** Hetzner (nginx Reverse-Proxy + PM2), https://simpliplan.toolies.eu
 - **Validation:** Zod + react-hook-form
 - **State:** React useState / Context API
 
@@ -46,7 +46,7 @@ docs/
 3. `/frontend` - Build UI components (shadcn/ui first!)
 4. `/backend` - Build APIs, database, RLS policies
 5. `/qa` - Test against acceptance criteria + security audit
-6. `/deploy` - Deploy to Vercel + production-ready checks
+6. `/deploy` - Deploy to Hetzner + production-ready checks
 
 ## Feature Tracking
 

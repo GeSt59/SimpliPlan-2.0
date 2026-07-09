@@ -1,0 +1,42 @@
+name: Deploy to Hetzner
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/SimpliPlan
+
+            echo "=== Git Pull ==="
+            git pull origin main
+
+            echo "=== .env.local schreiben ==="
+            cat > .env.local << 'ENVEOF'
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            APP_URL=https://simpliplan.toolies.eu
+            ENVEOF
+
+            echo "=== npm install ==="
+            npm ci --production=false
+
+            echo "=== Build ==="
+            npm run build
+
+            echo "=== PM2 Restart ==="
+            pm2 reload SimpliPlan --update-env || pm2 start ecosystem.config.js
+
+            echo "=== Fertig ==="
