@@ -1,6 +1,6 @@
 # PROJ-4: Verein-Verwaltung & Voreinstellungen (Tab-Namen)
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-09
 **Last Updated:** 2026-07-09
 
@@ -234,4 +234,12 @@ Vereinseinstellungen-Seite "/voreinstellung" (neu)
 - **Recommendation:** Deploy möglich. BUG-1 ist rein informativ und erfordert keine Code-Änderung.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-09
+**Production URL:** https://simpliplan.toolies.eu/voreinstellung
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei jedem Push auf `main`, `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe `docs/PRD.md`/`CLAUDE.md` — Vercel→Hetzner-Wechsel fand vor PROJ-4 statt, die generische `/deploy`-Skill-Doku ist in diesem Punkt veraltet).
+
+- Pre-Deployment-Checks: `npm run build` sauber, QA Approved, keine Secrets committed, DB-Migrationen bereits während `/backend`/QA-Fix live angewendet. `npm run lint` weiterhin am vorbestehenden, PROJ-4-unabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- Deploy ausgelöst durch `git push origin main` (7 Commits), GitHub-Actions-Run [`29050005938`](https://github.com/GeSt59/SimpliPlan-2.0/actions/runs/29050005938) — `success`
+- Post-Deployment-Verifikation (read-only, keine Produktivdaten verändert): unauthentifizierter Zugriff auf `/voreinstellung` redirected korrekt zu "/"; Login mit echtem Admin-Account zeigt korrekt vorausgefüllte echte Vereinsdaten ("LC Windischgarsten Pyhrn Priel"); keine Konsolenfehler
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) noch nicht projektweit eingerichtet — nicht Teil von PROJ-4, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3
