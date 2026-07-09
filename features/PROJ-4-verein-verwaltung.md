@@ -57,9 +57,10 @@
 - Tab-Namen: max. Länge (Vorschlag 20 Zeichen) wegen begrenztem Platz in der Navigationsleiste, aber kein Pflichtfeld
 
 ## Open Questions
-- [ ] Maximale Dateigröße/exakte erlaubte Formate für den Logo-Upload noch nicht final bestätigt (Vorschlag: PNG/JPG/SVG, 2 MB) — offen für /architecture
-- [ ] Maximale Zeichenlänge für Tab-Namen noch nicht final bestätigt (Vorschlag: 20 Zeichen) — offen für /architecture
+- [x] Maximale Dateigröße/exakte erlaubte Formate für den Logo-Upload → entschieden: PNG/JPG/SVG, max. 2 MB (siehe Technical Decisions)
+- [x] Maximale Zeichenlänge für Tab-Namen → entschieden: 20 Zeichen (siehe Technical Decisions)
 - [ ] Soll es einen Warnhinweis bei ungespeicherten Änderungen beim Verlassen der Seite geben? Für MVP bewusst nicht gebaut (siehe Edge Cases)
+- [ ] Die zwei bestehenden Lese-RLS-Policies auf `vereine` vergleichen unterschiedliche Felder (`vereine.adalo_id = ANY(u.verein)` vs. `vereine.id IN (unnest(u.verein))`) — möglicher bestehender Bug. `/backend` muss vor Anlage der neuen Update-Policy klären, welches Feld tatsächlich korrekt mit `users.verein` übereinstimmt
 
 ## Decision Log
 
@@ -77,13 +78,56 @@
 ### Technical Decisions
 | Decision | Rationale | Date |
 |----------|-----------|------|
-| _Added by /architecture_ | | |
+| Update erfolgt als direkter Browser→Supabase-Call, keine eigene API-Route | Der Admin bearbeitet nur seine eigenen Daten, kein Geheimnis muss vor dem Browser verborgen werden (anders als der Freischaltcode-Check bei der Registrierung); konsistent mit PROJ-3s Muster für Login/PW-Reset | 2026-07-09 |
+| Neue RLS-Update-Policy auf `vereine`: nur der Admin (`users.admin = true`) des zugeordneten Vereins darf die eigene `vereine`-Zeile ändern | Aktuell existieren auf `vereine`/`users` nur Lese-Policies (aus PROJ-3); die neue Policy ist die eigentliche Sicherheitsgrenze, der clientseitige Redirect ist nur UX-Komfort | 2026-07-09 |
+| Logo-Upload nutzt die bestehende öffentliche Storage-Bucket `adalo-media` (bereits aus der Migration vorhanden) statt einer neuen Bucket | Bucket ist bereits public und wird schon für Vereinslogos genutzt (`vereine.vereinslogo_url`); kein Grund für eine zweite Bucket | 2026-07-09 |
+| Neue Logo-Uploads schreiben ausschließlich in `vereine.vereinslogo_url` (Pfad `vereine/{verein_id}-{dateiname}`); das Adalo-Altfeld `vereine.vereinslogo` (jsonb) bleibt unangetastet | Trennung von Migrations-Altdaten und app-generierten Daten; `vereinslogo_url` ist bereits die etablierte Anzeige-Quelle (siehe `scripts/migrate-adalo/migrate-images.ts`) | 2026-07-09 |
+| Logo-Constraints: PNG/JPG/SVG, max. 2 MB, geprüft im Browser vor dem Upload | Löst die offene Frage aus dem Spec-Interview; ausreichend für Vereinslogos, verhindert versehentlich große/falsche Dateien | 2026-07-09 |
+| Tab-Namen: max. 20 Zeichen (kein Pflichtfeld) | Löst die offene Frage aus dem Spec-Interview; begrenzter Platz in der künftigen Navigationsleiste | 2026-07-09 |
+| Keine neuen npm-Pakete nötig | `@supabase/supabase-js`, `zod`, `react-hook-form` sowie die benötigten shadcn/ui-Komponenten (`form`, `input`, `button`, `alert-dialog`) sind bereits im Projekt vorhanden | 2026-07-09 |
 
 ---
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### A) Component Structure
+
+```
+Startseite "/" (bereits gebaut, PROJ-3)
+└── Link "Vereinseinstellungen" (nur sichtbar für eingeloggte Admins) → /voreinstellung
+
+Vereinseinstellungen-Seite "/voreinstellung" (neu)
+├── Zugriffsprüfung: liest users.admin, leitet bei false sofort zu "/" weiter
+├── Formular (vorausgefüllt mit aktuellen Werten des eigenen Vereins)
+│   ├── Abschnitt "Stammdaten"
+│   │   ├── Vereinsname (Textfeld, Pflicht)
+│   │   └── Vereinslogo (aktuelle Vorschau + Datei-Upload: PNG/JPG/SVG, max. 2 MB)
+│   ├── Abschnitt "Navigations-Tabs" (5 Textfelder, optional, max. 20 Zeichen)
+│   │   Tab 1–5, mit Platzhalter-Beispielen (Activities, Lions, Activity, Kategorien, Profil)
+│   ├── Abschnitt "Freischaltcode" (Textfeld)
+│   ├── "Speichern"-Button
+│   └── Erfolgs-/Fehlermeldung
+└── Bestätigungsdialog "Freischaltcode ändern?" (erscheint nur, wenn dieses Feld geändert wurde, vor dem eigentlichen Speichern)
+```
+
+### B) Data Model (fachlich, kein Code)
+
+- Keine neue Tabelle. Nutzt die bereits existierende `vereine`-Zeile des eigenen Vereins: `vereinsname`, `vereinslogo_url` (öffentliche Bild-URL — getrennt vom Adalo-Altfeld `vereinslogo`), `tab1`–`tab5`, `freischaltcode`.
+- Logo-Dateien landen in der bereits existierenden öffentlichen Storage-Bucket `adalo-media` (aus der Migration), unter einem neuen Pfad wie `vereine/{verein_id}-{dateiname}`; beim Speichern wird `vereine.vereinslogo_url` auf die neue öffentliche URL gesetzt.
+- Nicht angefasst: `vereinsnummer`, `freigeschaltet`, `adalo_id`, alle Beziehungs-Arrays (`rollens`, `activities`, `categories`, `users`, `gemeinde`).
+- Welcher Verein "der eigene" ist, wird wie in PROJ-3 über `users.verein` bestimmt.
+
+### C) Tech-Entscheidungen (Begründung für PM)
+
+- **Direkter Browser→Supabase-Update-Call statt eigener API-Route**: Der Admin bearbeitet nur seine eigenen Daten, es gibt kein Geheimnis zu schützen (anders als der Freischaltcode-Check bei der Registrierung) — eine Datenbank-Sicherheitsregel (RLS) kann das sicher direkt erlauben. Konsistent mit PROJ-3s Muster für Login/PW-Reset.
+- **Neue RLS-Update-Regel erforderlich**: Aktuell existieren nur Lese-Policies auf `vereine`/`users` (aus PROJ-3). Diese neue Regel ist die eigentliche Sicherheitsgrenze — der Redirect im Frontend ist nur Komfort, kein Schutz.
+- **Bestehende `adalo-media`-Bucket wiederverwenden** statt einer neuen — sie ist bereits öffentlich und wird schon für Vereinslogos aus der Migration genutzt.
+- **Datei-Constraints (Typ/Größe)** werden im Browser vor dem Upload geprüft — verhindert versehentlich zu große/falsche Dateien.
+
+### D) Dependencies
+
+- Keine neuen Pakete: `@supabase/supabase-js`, `zod`, `react-hook-form`, `shadcn/ui` (`form`, `input`, `button`, `alert-dialog`) — alles bereits im Projekt vorhanden.
 
 ## QA Test Results
 _To be added by /qa_
