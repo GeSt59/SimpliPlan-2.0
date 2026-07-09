@@ -1,9 +1,22 @@
 import type { Metadata } from "next";
+import { Rubik, Raleway } from "next/font/google";
 import "./globals.css";
 
+const rubik = Rubik({
+  subsets: ["latin"],
+  variable: "--font-heading",
+  weight: ["500", "600", "700"],
+});
+
+const raleway = Raleway({
+  subsets: ["latin"],
+  variable: "--font-body",
+  weight: ["400", "500", "600"],
+});
+
 export const metadata: Metadata = {
-  title: "AI Coding Starter Kit",
-  description: "Built with AI Agent Team System",
+  title: "SimpliPlan",
+  description: "Helfer-Planung für Vereine",
 };
 
 export default function RootLayout({
@@ -12,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
+    <html lang="de" className={`${rubik.variable} ${raleway.variable}`}>
+      <body className="antialiased font-body">
         {children}
       </body>
     </html>

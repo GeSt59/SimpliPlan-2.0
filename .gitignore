@@ -27,6 +27,12 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
+
+# adalo -> supabase migration (local cursor state, never contains credentials but keep private)
+scripts/migrate-adalo/migration-state.json
+# contains real user passwords in plaintext - never commit
+scripts/migrate-adalo/temp-passwords.json
 
 # vercel
 .vercel

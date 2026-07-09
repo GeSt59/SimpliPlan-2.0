@@ -1,101 +1,143 @@
-import Image from 'next/image'
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import { AuthShell } from "@/components/auth-shell";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{' '}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [session, setSession] = useState<Session | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setCheckingSession(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (loginError || !data.session) {
+      setError("E-Mail oder Passwort ist falsch.");
+      setLoading(false);
+      return;
+    }
+
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("verein")
+      .eq("auth_user_id", data.session.user.id)
+      .maybeSingle();
+
+    const vereinId = userRow?.verein?.[0];
+
+    if (vereinId) {
+      const { data: vereinRow } = await supabase
+        .from("vereine")
+        .select("freigeschaltet")
+        .eq("id", vereinId)
+        .maybeSingle();
+
+      if (vereinRow && vereinRow.freigeschaltet === false) {
+        await supabase.auth.signOut();
+        setError("Dein Verein ist noch nicht freigeschaltet. Bitte wende dich an den SimpliPlan-Betreiber.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    window.location.href = "/";
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  }
+
+  if (checkingSession) {
+    return <main className="min-h-screen bg-background" />;
+  }
+
+  if (session) {
+    return (
+      <AuthShell title="Willkommen">
+        <div className="flex w-full flex-col items-center gap-5">
+          <p className="text-sm text-foreground">Eingeloggt als {session.user.email}</p>
+          <Button
+            onClick={handleLogout}
+            className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            Logout
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  )
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell title="Login">
+      <form className="flex w-full flex-col gap-5" onSubmit={handleLogin}>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email">E-Mail</Label>
+          <Input id="email" name="email" type="email" placeholder="E-Mail eingeben..." required />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="password">Passwort</Label>
+          <Input id="password" name="password" type="password" placeholder="Passwort eingeben..." required />
+        </div>
+
+        <div className="mt-2 flex flex-col gap-3">
+          <Button
+            type="submit"
+            disabled={loading}
+            className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+          >
+            {loading ? "Wird eingeloggt..." : "Login"}
+          </Button>
+
+          <Button asChild variant="accent" className="h-12 w-full font-semibold uppercase tracking-wide">
+            <Link href="/register">Registrieren</Link>
+          </Button>
+
+          <Button
+            asChild
+            variant="outline"
+            className="h-12 w-full border-brand-gold font-semibold uppercase tracking-wide text-black hover:bg-brand-gold/10"
+          >
+            <Link href="/forgot-password">Passwort vergessen</Link>
+          </Button>
+        </div>
+      </form>
+    </AuthShell>
+  );
 }

@@ -1,3 +1,15 @@
+Alle Skills und MCP Server werden immer auf Projektebene installiert.
+
+# Karpathys Regeln
+
+Abwägung: Diese Richtlinien legen Wert auf Vorsicht statt auf Geschwindigkeit.
+Bei trivialen Aufgaben ist Urteilsvermögen gefragt.
+
+- \*\*1. Nachdenken vor dem Programmieren: Keine Annahmen treffen. Unklare Unklarheiten nicht verbergen. Abwägungen offenlegen. Vor der Implementierung: - Annahmen explizit formulieren. Bei Unsicherheit nachfragen. - Mehrere Interpretationsmöglichkeiten präsentieren. - Einfachere Ansätze nennen. - Unklare Stellen anhalten. Unklare Stellen benennen.
+- \*\*2. Einfachheit zuerst: Minimaler Code, der das Problem löst. Nichts Spekulatives. - Keine zusätzlichen Funktionen. - Keine Abstraktionen für einmalig verwendeten Code. - Keine nicht angeforderte „Flexibilität“. - Keine Fehlerbehandlung für unmögliche Szenarien. - Wenn 200 Zeilen auf 50 reduziert werden könnten, neu schreiben.
+- \*\*3. Gezielte Änderungen: Nur das Nötigste ändern. Nur eigene Fehler beheben. - Angrenzenden Code oder die Formatierung nicht „verbessern“. - Refaktoriere nur funktionierende Codeabschnitte. - Behalte den bestehenden Stil bei, auch wenn du es anders machen würdest. - Wenn du toten Code findest, erwähne ihn – lösche ihn nicht.
+- \*\*4. Zielorientierte Ausführung: Definiere Erfolgskriterien. Wiederhole den Vorgang, bis er bestätigt ist. Wandle Aufgaben in überprüfbare Ziele um: - „Validierung hinzufügen“ → „Tests schreiben und erfolgreich abschließen“ - „Fehler beheben“ → „Fehler in einem Test reproduzieren und beheben“ - „X refaktorisieren“ → „Sicherstellen, dass die Tests vorher und nachher erfolgreich sind“
+
 # AI Coding Starter Kit
 
 > A Next.js template with an AI-powered development workflow using specialized skills for Requirements, Architecture, Frontend, Backend, QA, and Deployment.
@@ -29,15 +41,12 @@ docs/
 
 ## Development Workflow
 
-1. `/init` - Initialize the project: PRD + feature map (run once at the start)
-2. `/write-spec` - Create a full feature spec for one feature
-3. `/architecture` - Design tech architecture (PM-friendly, no code)
-4. `/frontend` - Build UI components (shadcn/ui first!)
-5. `/backend` - Build APIs, database, RLS policies
-6. `/qa` - Test against acceptance criteria + security audit
-7. `/deploy` - Deploy to Vercel + production-ready checks
-
-Use `/refine PROJ-X` at any point to revisit and improve an existing feature spec.
+1. `/requirements` - Create feature spec from idea
+2. `/architecture` - Design tech architecture (PM-friendly, no code)
+3. `/frontend` - Build UI components (shadcn/ui first!)
+4. `/backend` - Build APIs, database, RLS policies
+5. `/qa` - Test against acceptance criteria + security audit
+6. `/deploy` - Deploy to Vercel + production-ready checks
 
 ## Feature Tracking
 
@@ -50,18 +59,14 @@ All features tracked in `features/INDEX.md`. Every skill reads it at start and u
 - **Single Responsibility:** One feature per spec file
 - **shadcn/ui first:** NEVER create custom versions of installed shadcn components
 - **Human-in-the-loop:** All workflows have user approval checkpoints
-- **Tests:** Unit tests co-located next to source files (`useHook.test.ts` next to `useHook.ts`). E2E tests in `tests/`.
 
 ## Build & Test Commands
 
 ```bash
-npm run dev          # Development server (localhost:3000)
-npm run build        # Production build
-npm run lint         # ESLint
-npm run start        # Production server
-npm test             # Vitest unit/integration tests
-npm run test:e2e     # Playwright E2E tests
-npm run test:all     # Both test suites
+npm run dev        # Development server (localhost:3000)
+npm run build      # Production build
+npm run lint       # ESLint
+npm run start      # Production server
 ```
 
 ## Product Context

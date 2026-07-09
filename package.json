@@ -12,7 +12,10 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:all": "vitest run && playwright test"
+    "test:all": "vitest run && playwright test",
+    "migrate:adalo": "tsx scripts/migrate-adalo/migrate.ts",
+    "migrate:adalo:images": "tsx scripts/migrate-adalo/migrate-images.ts",
+    "migrate:adalo:auth": "tsx scripts/migrate-adalo/create-auth-users.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -46,6 +49,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.71.1",
+    "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.2.0",
     "zod": "^4.3.5"
@@ -60,11 +64,13 @@
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/ui": "^4.1.2",
     "autoprefixer": "^10.0.1",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "jsdom": "^29.0.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.23.0",
     "typescript": "^5",
     "vitest": "^4.1.2"
   }

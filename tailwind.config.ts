@@ -9,7 +9,15 @@ const config: Config = {
   ],
   theme: {
   	extend: {
+  		fontFamily: {
+  			heading: ['var(--font-heading)', 'sans-serif'],
+  			body: ['var(--font-body)', 'sans-serif']
+  		},
   		colors: {
+  			brand: {
+  				blue: '#00335E',
+  				gold: '#E9BF08'
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

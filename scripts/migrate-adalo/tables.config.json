@@ -1,0 +1,16 @@
+[
+  { "adaloCollectionId": "t_4sk93aia8r8s3h9zfeq34bj5s", "tableName": "videos" },
+  { "adaloCollectionId": "t_5stqy71kxmu9oahhu2jb71omc", "tableName": "einstellungen" },
+  { "adaloCollectionId": "t_678lg2jclco846owximk57w0y", "tableName": "rollen" },
+  { "adaloCollectionId": "t_68u46lcjn1kpl4he0g5ncdu0z", "tableName": "gemeinde" },
+  { "adaloCollectionId": "t_b96tqfdaer1qcm3saquvs79i5", "tableName": "zeitbereiche" },
+  { "adaloCollectionId": "t_d95wuug4opfiizuzm062gn9rl", "tableName": "vereine" },
+  { "adaloCollectionId": "t_eoxkauncoe3b13pik3gdfnfts", "tableName": "notofication" },
+  { "adaloCollectionId": "t_1d4d1a2b62be4dd3a6a65566aeea5282", "tableName": "activities" },
+  { "adaloCollectionId": "t_6e5d40b1ffb04caaad5788d81be74f06", "tableName": "categories" },
+  {
+    "adaloCollectionId": "t_e0f8af27abcd425080e254421b8316bc",
+    "tableName": "users",
+    "excludeFields": ["Password"]
+  }
+]
