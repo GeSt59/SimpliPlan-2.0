@@ -1,6 +1,6 @@
 # PROJ-4: Verein-Verwaltung & Voreinstellungen (Tab-Namen)
 
-## Status: Planned
+## Status: In Progress
 **Created:** 2026-07-09
 **Last Updated:** 2026-07-09
 
@@ -128,6 +128,20 @@ Vereinseinstellungen-Seite "/voreinstellung" (neu)
 ### D) Dependencies
 
 - Keine neuen Pakete: `@supabase/supabase-js`, `zod`, `react-hook-form`, `shadcn/ui` (`form`, `input`, `button`, `alert-dialog`) — alles bereits im Projekt vorhanden.
+
+## Frontend Implementation Notes
+
+**Gebaut:** `/voreinstellung` (`src/app/voreinstellung/page.tsx`) sowie ein Link "Vereinseinstellungen" auf der Startseite (`src/app/page.tsx`), der nur für eingeloggte Admins sichtbar ist (`users.admin`-Check).
+
+- Formular lädt die `vereine`-Zeile des eigenen Vereins direkt im Browser (`users.verein` → `vereine.id`) und füllt Vereinsname, Logo, alle 5 Tab-Namen und Freischaltcode vor
+- Zugriffsschutz clientseitig: kein Session → Redirect zu "/"; Session ohne `users.admin = true` → Redirect zu "/" (wie in Tech Design festgelegt, RLS ist die eigentliche Sicherheitsgrenze)
+- Logo-Upload: clientseitige Validierung (PNG/JPG/SVG, max. 2 MB) mit sofortiger lokaler Vorschau (`URL.createObjectURL`); der tatsächliche Upload in die Storage-Bucket `adalo-media` sowie das Schreiben von `vereine.vereinslogo_url` passiert erst beim Klick auf "Speichern"
+- Freischaltcode-Änderung löst vor dem eigentlichen Speichern einen `AlertDialog` aus (Warnung, dass alte Codes ungültig werden); bei "Abbrechen" wird nichts gespeichert, das Formular behält die eingegebenen Werte
+- Speichern läuft als direkter `supabase.from("vereine").update(...)`-Call ohne eigene API-Route (siehe Technical Decisions) — **setzt die neue RLS-Update-Policy aus `/backend` voraus**, ohne sie schlägt jeder Speichervorgang fehl
+- Tab-Namen: `maxLength={20}` auf den Inputs verhindert längere Eingaben bereits beim Tippen; leere Tab-Felder sind erlaubt (kein Zod-`min`)
+
+**Manuell verifiziert** (Playwright-Skript gegen den echten Dev-Server + echte Supabase-Instanz, mit vom User bereitgestelltem Admin-Testaccount): unauthentifizierter Zugriff auf `/voreinstellung` redirected zu "/"; Admin-Link erscheint nur für Admins; Formular korrekt vorausgefüllt mit echten Vereinsdaten; leerer Vereinsname zeigt Validierungsfehler; Tab-Namen auf 20 Zeichen begrenzt; ungültiger Logo-Dateityp wird abgelehnt; gültige Logo-Datei zeigt lokale Vorschau; Freischaltcode-Änderung zeigt Bestätigungsdialog, "Abbrechen" speichert nichts (per Reload gegen die echte DB verifiziert); ein Speichervorgang mit unveränderten Werten (No-Op) bestätigt, dass der komplette Save-Pfad inkl. der neuen RLS-Update-Policy tatsächlich funktioniert. Keine Konsolenfehler. Es wurden bewusst keine echten Vereinsdaten (Name, Tabs, Freischaltcode, Logo) dauerhaft verändert — nur mit identischen Werten zurückgespeichert.
+- **Nicht live getestet:** tatsächliches Ändern eines Werts + Speichern (hätte reale Produktivdaten verändert, z.B. den einzigen echten Freischaltcode) — das ist Aufgabe von `/qa` mit einem isolierten Test-Verein, wie bereits bei PROJ-3 praktiziert
 
 ## QA Test Results
 _To be added by /qa_

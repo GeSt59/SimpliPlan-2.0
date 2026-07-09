@@ -15,19 +15,35 @@ export default function Home() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setCheckingSession(false);
+      if (data.session) void loadAdminFlag(data.session.user.id);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
+      if (newSession) {
+        void loadAdminFlag(newSession.user.id);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  async function loadAdminFlag(authUserId: string) {
+    const { data } = await supabase
+      .from("users")
+      .select("admin")
+      .eq("auth_user_id", authUserId)
+      .maybeSingle();
+    setIsAdmin(!!data?.admin);
+  }
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -86,6 +102,11 @@ export default function Home() {
       <AuthShell title="Willkommen">
         <div className="flex w-full flex-col items-center gap-5">
           <p className="text-sm text-foreground">Eingeloggt als {session.user.email}</p>
+          {isAdmin && (
+            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+              <Link href="/voreinstellung">Vereinseinstellungen</Link>
+            </Button>
+          )}
           <Button
             onClick={handleLogout}
             className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
