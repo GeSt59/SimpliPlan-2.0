@@ -1,6 +1,6 @@
 # PROJ-7: Mitgliederverwaltung (Admin)
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-07-11
 **Last Updated:** 2026-07-12
 
@@ -328,7 +328,14 @@ Mitglieder-Seite "/mitglieder" (neu)
 - **Recommendation:** Deploy möglich. BUG-3 ist rein informativ (nicht PROJ-7-spezifisch) und erfordert keinen Fix im Rahmen dieses Features.
 
 ## Deployment
-_To be added by /deploy_
 
-## Deployment
-_To be added by /deploy_
+**Deployed:** 2026-07-12
+**Production URL:** https://simpliplan.toolies.eu/mitglieder
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei Push auf `main`, `npm ci` + `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe PROJ-4/5/6).
+
+- Pre-Deployment-Checks: `npm run build` sauber, `npm test` 20/20, QA Approved (20/20 AC, 0 offene Critical/High-Bugs), keine Secrets im Diff (nur PROJ-7-relevante Dateien gestaged, das vorbestehende, unabhängige `.claude/settings.json` bewusst ausgeschlossen), DB-Migrationen bereits während `/backend` live angewendet. `npm run lint` weiterhin am vorbestehenden, PROJ-7-unabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- Ein Commit `feat(PROJ-7): ...` gepusht nach `main` (Spec, Architecture, Frontend, Backend und QA gebündelt, wie schon bei PROJ-5/6)
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Workflow "Deploy to Hetzner"
+- Tag `v1.3.0-PROJ-7` erstellt und gepusht
+- Post-Deployment-Verifikation: `https://simpliplan.toolies.eu/` und `/mitglieder` liefern beide HTTP 200; per SSH bestätigt, dass der Server-Checkout auf dem neuen Commit steht (`eaa9792`) und der PM2-Prozess "SimpliPlan" nach dem Reload online ist
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-7, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3–6
