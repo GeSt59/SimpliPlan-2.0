@@ -16,6 +16,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSu, setIsSu] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -30,6 +31,7 @@ export default function Home() {
         void loadAdminFlag(newSession.user.id);
       } else {
         setIsAdmin(false);
+        setIsSu(false);
       }
     });
 
@@ -39,10 +41,11 @@ export default function Home() {
   async function loadAdminFlag(authUserId: string) {
     const { data } = await supabase
       .from("users")
-      .select("admin")
+      .select("admin, su")
       .eq("auth_user_id", authUserId)
       .maybeSingle();
     setIsAdmin(!!data?.admin);
+    setIsSu(!!data?.su);
   }
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
@@ -115,6 +118,11 @@ export default function Home() {
           {isAdmin && (
             <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
               <Link href="/rollen">Rollen</Link>
+            </Button>
+          )}
+          {(isAdmin || isSu) && (
+            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+              <Link href="/mitglieder">Mitglieder</Link>
             </Button>
           )}
           <Button
