@@ -1,6 +1,6 @@
 # PROJ-5: Kategorien-Verwaltung
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-09
 **Last Updated:** 2026-07-09
 
@@ -261,4 +261,15 @@ Kategorien-Seite "/kategorien" (neu)
 **Verifiziert:** Ein direkter SQL-Simulationstest (Insert/Select/Delete mit echter Admin-JWT-Identität) wurde vom Auto-Mode als riskant eingestuft (Schreibzugriff auf Produktionsdaten ohne sichtbaren Rollback) und blockiert. Stattdessen hat der User den kompletten CRUD-Flow (Anlegen, Bearbeiten, Löschen einer Kategorie inkl. Bild-Upload) selbst manuell im Browser gegen den laufenden Production-Build mit seinem echten Admin-Account getestet — **bestätigt funktionsfähig.** Damit sind die neuen RLS-Policies (`categories` INSERT/UPDATE/DELETE, Storage `kategorien/*`) sowie der korrigierte Verwendungs-Check end-to-end bestätigt.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-11
+**Production URL:** https://simpliplan.toolies.eu/kategorien
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei jedem Push auf `main`, `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe PROJ-4).
+
+- Pre-Deployment-Checks: `npm run build` sauber (inkl. BUG-1-Fix), QA Approved, keine Secrets im Diff gefunden, DB-Migration bereits während `/backend` live angewendet. `npm run lint` weiterhin am vorbestehenden, PROJ-4-unabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- `playwright-report/` und `test-results/` (generierte Testartefakte) zu `.gitignore` hinzugefügt, da sie versehentlich ungetrackt im Arbeitsverzeichnis lagen
+- Ein Commit `feat(PROJ-5): ...` (Spec, Architecture, Frontend, Backend und QA wurden erst am Ende dieser Session gebündelt committet, da während der einzelnen Skill-Phasen zuvor nicht explizit um einen Commit gebeten wurde) — gepusht nach `main`
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Workflow "Deploy to Hetzner"
+- Tag `v1.1.0-PROJ-5` erstellt und gepusht
+- Post-Deployment-Verifikation (read-only, keine Produktivdaten verändert): `/` und `/kategorien` liefern beide HTTP 200 auf der echten Domain
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-5, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3/PROJ-4
