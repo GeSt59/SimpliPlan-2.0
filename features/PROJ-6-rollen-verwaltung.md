@@ -1,6 +1,6 @@
 # PROJ-6: Rollen-Verwaltung (Kassier, Kellner, …)
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-11
 **Last Updated:** 2026-07-11
 
@@ -235,4 +235,14 @@ Keine neuen Bugs gefunden. Die proaktiv in `/architecture`/`/backend` vorgenomme
 - **Recommendation:** Deploy möglich.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-11
+**Production URL:** https://simpliplan.toolies.eu/rollen
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei jedem Push auf `main`, `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe PROJ-4/PROJ-5).
+
+- Pre-Deployment-Checks: `npm run build` sauber, QA Approved, keine Secrets im Diff gefunden, DB-Migrationen bereits während `/backend` live angewendet.
+- Ein Commit `feat(PROJ-6): ...` gepusht nach `main` (Spec, Architecture, Frontend, Backend und QA gebündelt, wie schon bei PROJ-5 mangels expliziter Zwischen-Commits während der einzelnen Skill-Phasen)
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Workflow "Deploy to Hetzner"
+- Tag `v1.2.0-PROJ-6` erstellt und gepusht
+- Post-Deployment-Verifikation (read-only, keine Produktivdaten verändert): `/` und `/rollen` liefern beide HTTP 200 auf der echten Domain
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-6, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3/4/5

@@ -20,7 +20,7 @@
 | PROJ-3 | Authentifizierung (Register/Login/PW vergessen, Rollen) | P0 | Approved | PROJ-1 | [PROJ-3](PROJ-3-authentifizierung.md) | 2026-07-08 |
 | PROJ-4 | Verein-Verwaltung & Voreinstellungen (Tab-Namen) | P0 | Deployed | PROJ-1, PROJ-3 | [PROJ-4](PROJ-4-verein-verwaltung.md) | 2026-07-08 |
 | PROJ-5 | Kategorien-Verwaltung | P0 | Deployed | PROJ-4 | [PROJ-5](PROJ-5-kategorien-verwaltung.md) | 2026-07-08 |
-| PROJ-6 | Rollen-Verwaltung (Kassier, Kellner, …) | P0 | Approved | PROJ-4 | [PROJ-6](PROJ-6-rollen-verwaltung.md) | 2026-07-08 |
+| PROJ-6 | Rollen-Verwaltung (Kassier, Kellner, …) | P0 | Deployed | PROJ-4 | [PROJ-6](PROJ-6-rollen-verwaltung.md) | 2026-07-08 |
 | PROJ-7 | Mitgliederverwaltung (Admin) | P0 | Roadmap | PROJ-4 | - | 2026-07-08 |
 | PROJ-8 | Activities CRUD | P0 | Roadmap | PROJ-5 | - | 2026-07-08 |
 | PROJ-9 | Zeitbereiche CRUD | P0 | Roadmap | PROJ-8, PROJ-6 | - | 2026-07-08 |
