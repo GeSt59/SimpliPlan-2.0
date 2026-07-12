@@ -1,6 +1,6 @@
 # PROJ-7: Mitgliederverwaltung (Admin)
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-11
 **Last Updated:** 2026-07-12
 
@@ -501,3 +501,17 @@ Keine neuen Bugs gefunden. Ein anfänglicher Testfehlschlag ("Foto card shows th
 - Tag `v1.3.0-PROJ-7` erstellt und gepusht
 - Post-Deployment-Verifikation: `https://simpliplan.toolies.eu/` und `/mitglieder` liefern beide HTTP 200; per SSH bestätigt, dass der Server-Checkout auf dem neuen Commit steht (`eaa9792`) und der PM2-Prozess "SimpliPlan" nach dem Reload online ist
 - Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-7, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3–6
+
+### Erweiterung 2026-07-12: Deployment (Foto-Karten-Ansicht, Profilbild-Upload, hartes Löschen)
+
+**Deployed:** 2026-07-12
+**Production URL:** https://simpliplan.toolies.eu/mitglieder
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei Push auf `main`, `npm ci` + `npm run build` + PM2-Reload (Prozess "SimpliPlan"), identisch zum bestehenden Mechanismus.
+
+- Pre-Deployment-Checks: `npm run build` sauber, `npm test` 29/29, QA Approved (12/12 neue AC, 0 Bugs), keine Secrets im Diff, DB-Migrationen (inkl. der neuen Storage-Policies) bereits vor dem Deploy live angewendet und end-to-end verifiziert. `npm run lint` weiterhin am vorbestehenden, PROJ-7-unabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- Bewusst NICHT mit committet: `.claude/settings.json` (unabhängige, vorbestehende Permissions-Änderung außerhalb des PROJ-7-Scopes, gleiches Vorgehen wie beim ersten PROJ-7-Deploy)
+- Commit `feat(PROJ-7): Add photo-card view, profile picture upload, hard delete` (`5564703`) gepusht nach `main`
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Workflow "Deploy to Hetzner"
+- Tag `v1.4.0-PROJ-7` erstellt und gepusht
+- Post-Deployment-Verifikation: per SSH bestätigt, dass der Server-Checkout auf `5564703` steht und der PM2-Prozess "SimpliPlan" nach dem Reload online ist (Uptime 64s zum Prüfzeitpunkt); `https://simpliplan.toolies.eu/` und `/mitglieder` liefern beide HTTP 200
+- Production-Ready-Essentials weiterhin unverändert (nicht Teil dieser Erweiterung)
