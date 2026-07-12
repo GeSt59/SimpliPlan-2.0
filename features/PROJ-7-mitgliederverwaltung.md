@@ -1,8 +1,10 @@
 # PROJ-7: Mitgliederverwaltung (Admin)
 
-## Status: Deployed
+## Status: Approved
 **Created:** 2026-07-11
 **Last Updated:** 2026-07-12
+
+> **Refinement (2026-07-12):** Nutzer hat nach dem ersten Deployment ein visuelles Redesign angefordert (Foto-Karten-Ansicht nach Vorbild der alten Adalo-App statt der einfachen Liste) sowie zwei neue Fähigkeiten: Profilbild-Upload/-Anzeige und hartes Löschen von Mitgliedern. Status auf "Planned" zurückgesetzt, da der neue Umfang eine erneute `/architecture`→`/frontend`→`/backend`→`/qa`→`/deploy`-Runde braucht. Die bereits deployte Basisfunktionalität (Liste, Bearbeiten, Anlegen, Aktiv/Admin-Toggle, letzter-Admin-Schutz, SU-Switcher) bleibt unverändert live und funktionsfähig, während diese Erweiterung entsteht.
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Mitglieder-Zugriff auf den eigenen Verein beschränken
@@ -18,9 +20,13 @@
 - Als Admin möchte ich beim Entfernen der eigenen Admin-Rechte oder Selbst-Deaktivierung geschützt werden, wenn ich der letzte Admin des Vereins bin, damit sich der Verein nicht versehentlich komplett aussperrt.
 - Als Mitglied (kein Admin) möchte ich keinen Zugriff auf die Mitgliederverwaltung haben, damit administrative Funktionen von meiner Ansicht getrennt bleiben.
 - Als SuperUser möchte ich zuerst einen Verein auswählen und dann dessen Mitglieder genauso verwalten können wie der jeweilige Verein-Admin, damit ich bei Bedarf vereinsübergreifend unterstützen kann (z.B. wenn ein Verein aktuell keinen aktiven Admin hat).
+- Als Admin möchte ich meine Mitglieder in einer Foto-Karten-Ansicht (2 Spalten, Portraitfoto, Name + E-Mail überlagert) sehen, damit ich Personen schneller visuell wiedererkenne — nach Vorbild der bisherigen Adalo-App.
+- Als Admin möchte ich zwischen der Foto-Karten-Ansicht und einer einfachen Listenform umschalten können, damit ich je nach Situation (z.B. viele Mitglieder ohne Foto) die passendere Ansicht wählen kann.
+- Als Admin möchte ich direkt auf das Profilfoto/die Karte eines Mitglieds klicken, um in den Bearbeiten-Dialog zu gelangen, damit ich nicht extra einen separaten Button treffen muss.
+- Als Admin möchte ich das Profilbild eines Mitglieds hochladen/ersetzen können, damit die Foto-Karten-Ansicht auch für Bestandsmitglieder ohne migriertes Foto nutzbar wird.
+- Als Admin möchte ich ein Mitglied unwiderruflich löschen können (nicht nur deaktivieren), damit ich Karteileichen und irrtümlich angelegte Accounts vollständig entfernen kann.
 
 ## Out of Scope
-- Hartes Löschen von Mitgliedern (inkl. Auth-Account) — bewusst nicht gebaut, `aktiv = false` deckt den "nicht mehr aktives Mitglied"-Fall ab, ohne Referenzen (Einteilungen, historische Zuteilungen) zu verwaisen
 - Vergabe von SuperUser-Rechten (`users.su`) über die App-UI — der SU setzt das Feld direkt in Supabase (bewusste Nutzerentscheidung), kein Feature dafür in PROJ-7 oder der Roadmap (siehe PROJ-3 Open Questions)
 - Bearbeiten von `mitgliedsnumer`, `geburtstag`, `titel_nachher`, `vorher_titel` durch das Mitglied selbst — das ist Teil von PROJ-12 (Profil-Verwaltung); PROJ-7 gibt dem Admin lediglich zusätzlich Schreibzugriff auf dieselben Felder
 - Passwort-Reset für ein Mitglied durch den Admin (z.B. "Passwort zurücksetzen"-Button) — Mitglieder nutzen dafür den bestehenden "Passwort vergessen"-Flow aus PROJ-3
@@ -30,6 +36,9 @@
 - Eindeutigkeits-Constraint auf Mitgliedsnummer — reines Freitextfeld, keine Validierung
 - Bulk-Operationen (z.B. mehrere Mitglieder gleichzeitig deaktivieren)
 - Anlegen/Verwaltung mehrerer Vereinsmitgliedschaften pro Account (siehe PRD Non-Goals: 1 Account = 1 Verein)
+- Selbst-Upload des eigenen Profilbilds durch das Mitglied (ohne Admin) — gehört zu PROJ-12 (Profil-Verwaltung); PROJ-7 deckt nur den Admin-seitigen Upload für beliebige Mitglieder des eigenen Vereins ab
+- Bildzuschnitt/-bearbeitung (Crop, Rotation) beim Profilbild-Upload — Bild wird 1:1 wie hochgeladen übernommen, gleiches Muster wie Vereinslogo (PROJ-4) und Kategorie-Bild (PROJ-5)
+- Papierkorb/Wiederherstellen gelöschter Mitglieder — hartes Löschen ist endgültig, kein Soft-Delete
 
 ## Acceptance Criteria
 
@@ -56,6 +65,15 @@
 - [ ] Angenommen ein SuperUser ist eingeloggt, wenn er `/mitglieder` aufruft, dann sieht er zuerst eine Auswahl aller Vereine (Verein-Switcher) statt direkt einer Mitgliederliste
 - [ ] Angenommen der SuperUser wählt einen Verein aus, dann sieht er dieselbe Mitgliederliste samt aller Aktionen (Suche, Filter, Bearbeiten, Aktiv/Inaktiv, Admin-Flag, manuell anlegen), wie sie ein Admin dieses Vereins sehen würde
 - [ ] Angenommen der SuperUser entfernt das Admin-Flag oder den Aktiv-Status eines anderen Nutzers (nicht sich selbst), auch wenn dieser Nutzer der letzte Admin des gewählten Vereins ist, dann wird die Änderung ohne den "letzter Admin"-Schutz übernommen (dieser Schutz gilt ausschließlich bei Selbst-Änderung, unabhängig von der Rolle des Handelnden)
+- [ ] Angenommen der Admin ruft `/mitglieder` auf, dann sieht er standardmäßig die Foto-Karten-Ansicht (2 Spalten): Portraitfoto (oder Platzhalter ohne Foto), Name und E-Mail als Overlay unten auf dem Foto, Papierkorb-Icon oben rechts
+- [ ] Angenommen der Admin klickt auf den Button "In Listenform", dann wechselt die Ansicht zur einfachen Listenform (wie vor diesem Redesign); ein erneuter Klick wechselt zurück zur Foto-Karten-Ansicht
+- [ ] Angenommen der Admin klickt auf das Foto/die Karte eines Mitglieds (in der Foto-Karten-Ansicht), dann öffnet sich derselbe Bearbeiten-Dialog wie über den "Bearbeiten"-Button in der Listenform
+- [ ] Angenommen der Admin lädt im Bearbeiten-Dialog ein neues Profilbild hoch (PNG/JPG/SVG, max. 2 MB), dann wird eine Vorschau angezeigt; nach dem Speichern erscheint das neue Foto in der Foto-Karten-Ansicht
+- [ ] Angenommen der Admin lädt eine ungültige Datei (falsches Format oder zu groß) als Profilbild hoch, dann wird eine Fehlermeldung angezeigt und der Upload abgebrochen, das bisherige Bild bleibt unverändert
+- [ ] Angenommen ein Mitglied hat kein Profilbild, dann zeigt die Foto-Karten-Ansicht einen neutralen Platzhalter anstelle eines Fotos
+- [ ] Angenommen der Admin klickt auf das Papierkorb-Icon einer Mitglieds-Karte, dann erscheint ein Bestätigungsdialog ("Mitglied X unwiderruflich löschen?"); nach Bestätigung werden Auth-Account und `users`-Zeile entfernt und das Mitglied verschwindet aus der Liste
+- [ ] Angenommen der Admin bricht den Lösch-Bestätigungsdialog ab, dann wird nichts gelöscht
+- [ ] Angenommen der Admin versucht, sich selbst (die eigene "Du"-Zeile) zu löschen, dann wird das verhindert (analog zum "letzter Admin"-Schutz — ein Admin kann sich nicht selbst aus der Verwaltung entfernen)
 
 ## Edge Cases
 - Admin ist der einzige Admin des Vereins und versucht, sich selbst das Admin-Flag zu entziehen oder sich zu deaktivieren → verhindert (siehe AC), Fehlermeldung erklärt den Grund
@@ -67,17 +85,28 @@
 - Migrierte Bestandsmitglieder ohne gesetzte Mitgliedsnummer/Geburtstag/Titel → Felder erscheinen leer im Formular, kein Pflichtfeld, kein Fehler
 - SuperUser wählt einen Verein ohne jegliche Mitglieder → derselbe Leerzustand wie bei einem Admin
 - SuperUser degradiert den letzten Admin eines Vereins → bewusst erlaubt (kein Schutz bei Fremdänderung durch SU), der Verein hat danach vorübergehend keinen Admin mehr, bis der SU selbst oder ein SuperUser-Eingriff einen neuen Admin setzt
+- Admin löscht ein Mitglied, das bereits in einer künftigen Einteilung referenziert ist (`einstellungen.eingeteilte_users`, Feld existiert bereits aus der Adalo-Migration, auch wenn PROJ-9/10 die UI dafür noch nicht bauen) → Lösch-Schutz analog zu PROJ-5/6 (Verwendungs-Check vor dem Löschen), siehe Technical Requirements
+- Admin versucht, sich selbst zu löschen → verhindert, unabhängig davon ob weitere Admins existieren (ein Admin darf sich nicht selbst aus der eigenen Verwaltung entfernen)
+- Admin löscht ein Mitglied, das gerade eingeloggt ist → Auth-Account wird sofort entfernt, laufende Session des betroffenen Mitglieds wird beim nächsten Request ungültig (Supabase invalidiert den zugehörigen Refresh-Token serverseitig)
+- Wechsel zwischen Foto-Karten- und Listenform während eine Suche/ein Filter aktiv ist → Suchbegriff und Filter bleiben über den Ansichtswechsel hinweg erhalten
+- Profilbild-Upload schlägt wegen Netzwerkfehler fehl → Fehlermeldung, bisheriges Bild bleibt unverändert (identisches Muster wie Vereinslogo-Upload aus PROJ-4)
 
 ## Technical Requirements (optional)
 - Security: Zugriff nur für `users.admin = true` des eigenen Vereins ODER `users.su` gesetzt; RLS beschränkt Lese-/Schreibzugriff auf `users`-Zeilen des eigenen Vereins (Cross-Tenant-Schutz, zentrales Projektversprechen) — der SU ist die einzige bewusste, eng geführte Ausnahme von dieser Grenze und muss in `/architecture`/`/backend` entsprechend sorgfältig abgesichert werden (kein pauschaler Bypass, sondern eine explizit auf `su` geprüfte Policy/Route)
 - Manuelles Anlegen erfordert wie die Registrierung (PROJ-3) eine serverseitige API-Route, da ein neuer Auth-Account mit Service-Role-Rechten angelegt werden muss
 - Initial-Passwort: gleiche Mindestlänge wie Registrierung (6 Zeichen, Supabase-Standard)
 - "Letzter Admin"-Schutz muss serverseitig geprüft werden (nicht nur clientseitig), da RLS/API die eigentliche Sicherheitsgrenze ist
+- Hartes Löschen erfordert wie das Anlegen eine serverseitige API-Route (Service-Role, um den Auth-Account zu entfernen); serverseitiger Verwendungs-Check gegen `einstellungen.eingeteilte_users` vor dem eigentlichen Löschen (analog zum Rollen-/Kategorien-Lösch-Schutz aus PROJ-5/6), sowie serverseitige Sperre gegen Selbst-Löschung
+- Profilbild-Upload: gleiche Constraints wie Vereinslogo/Kategorie-Bild (PNG/JPG/SVG, max. 2 MB), voraussichtlich dieselbe Storage-Bucket `adalo-media` mit einem neuen Pfad-Präfix (z.B. `mitglieder/{user-id}-*`), finale Entscheidung in `/architecture`
+- Feld `users.profile_picture_url` existiert bereits in der DB (bisher ungenutzt seit der Adalo-Migration) — wird für den neuen Upload-Pfad verwendet, analog zu `vereine.vereinslogo_url`/`categories.picture_url`
 
 ## Open Questions
 - [x] Soll die Selbst-Änderung (eigenes Admin-Flag / eigener Aktiv-Status) über dieselbe Liste laufen wie bei anderen Mitgliedern, oder braucht es eine separate UI-Behandlung? → entschieden: dieselbe Liste, eigene Zeile erhält zusätzlich ein "Du"-Badge zur Orientierung (siehe Tech Design)
 - [x] Existiert für die 32 migrierten Bestandsmitglieder bereits ein zweiter Admin pro Verein? → per Introspektion geprüft: der einzige reale Verein hat aktuell **4 Admins**, kein "letzter Admin"-Risiko im Live-Betrieb
 - [x] E-Mail-Sync-Lücke aus `/frontend` → behoben: Bearbeiten läuft jetzt über eine neue `PATCH /api/mitglieder/[id]`-Route, die bei geänderter E-Mail zusätzlich `auth.users` per Service-Role synchronisiert (siehe Technical Decisions). End-to-End live verifiziert: neue E-Mail funktioniert tatsächlich zum Einloggen.
+- [x] Exakter Storage-Pfad/Bucket für Profilbilder → entschieden in `/architecture`: Bucket `adalo-media` (wiederverwendet), neue Uploads unter `users/{vereinId}-{userId}-{dateiname}` (siehe Technical Decisions)
+- [x] Soll die zuletzt gewählte Ansicht gemerkt werden? → entschieden: ja, per `localStorage` (Schlüssel `mitglieder-view`), Foto-Karten bleibt der Default beim allerersten Aufruf
+- [x] Migrierte Bestandsmitglieder: gibt es bereits Adalo-Profilbilder? → per Introspektion geprüft: **32 von 46** `users`-Zeilen haben bereits ein befülltes `profile_picture_url` (Format `adalo-media/users/{adalo_id}-{hash}.jpg`, öffentlich erreichbar) — keine Migration nötig, PROJ-7 zeigt diese direkt an; neue Admin-Uploads nutzen ein anderes Pfad-Schema (s.o.) und überschreiben `profile_picture_url` mit der neuen URL
 
 ## Decision Log
 
@@ -85,7 +114,11 @@
 | Decision | Rationale | Date |
 |----------|-----------|------|
 | Verein-Admin darf anderen Mitgliedern des eigenen Vereins das Admin-Flag (`users.admin`) selbst verleihen/entziehen | Nutzerentscheidung im Interview — bewusste Abweichung von der PRD-Formulierung "SuperUser vergibt Admin-Rechte"; SuperUser bleibt weiterhin exklusiv für `su`-Rechte zuständig | 2026-07-11 |
-| Kein hartes Löschen von Mitgliedern, nur `aktiv = false` | Verhindert verwaiste Referenzen in zukünftigen Zuteilungen/Einteilungen (PROJ-9/10/11); konsistent mit dem Muster, Datenverlust zu vermeiden | 2026-07-11 |
+| ~~Kein hartes Löschen von Mitgliedern, nur `aktiv = false`~~ → **Aufgehoben in `/refine` am 2026-07-12** | Ursprünglich zur Vermeidung verwaister Referenzen; der Nutzer hat sich nach Hinweis auf dieses Risiko bewusst für echtes Löschen entschieden (siehe neue Entscheidung unten) | 2026-07-11 |
+| Hartes Löschen von Mitgliedern (Auth-Account + `users`-Zeile) wird eingeführt, mit serverseitigem Verwendungs-Check gegen `einstellungen.eingeteilte_users` vor dem Löschen | Nutzerentscheidung im Refinement-Interview nach dem ersten Deployment (Vorbild: Papierkorb-Icon in der alten Adalo-App); der Verwendungs-Check schließt das ursprünglich befürchtete Risiko verwaister Referenzen | 2026-07-12 |
+| Ein Admin kann sich nicht selbst löschen (unabhängig von der Anzahl weiterer Admins) | Eigene Produktentscheidung während `/refine`, nicht explizit vom Nutzer gefordert, aber konsistent mit dem bereits etablierten Prinzip, dass sich ein Admin nicht selbst aus der eigenen Verwaltung entfernen kann (vgl. "letzter Admin"-Schutz) — kann bei Bedarf noch korrigiert werden | 2026-07-12 |
+| Foto-Karten-Ansicht (2 Spalten, Portraitfoto + Name/E-Mail-Overlay) wird die neue Standardansicht; zusätzlich ein Toggle zu einer einfachen Listenform (identisch zur bisherigen Ansicht) | Nutzerentscheidung im Refinement-Interview: 1:1-Vorbild der alten Adalo-App; beide Ansichten sollen erhalten bleiben statt nur eine zu ersetzen | 2026-07-12 |
+| Profilbild-Upload/-Anzeige wird neu eingeführt (bisher ungenutztes Feld `users.profile_picture_url`); Admin-seitig für beliebige Mitglieder des eigenen Vereins, kein Selbst-Upload durch Mitglieder (das bleibt PROJ-12 vorbehalten) | Nutzerentscheidung im Refinement-Interview: Klick aufs Foto führt zum Bearbeiten, Foto soll dort austauschbar sein | 2026-07-12 |
 | Admin kann Mitglieder manuell anlegen (ohne Freischaltcode) | Löst den in PROJ-3 vermerkten Bedarf; deckt den Fall ab, dass ein Mitglied sich nicht selbst registrieren kann/will | 2026-07-11 |
 | Initial-Passwort wird vom Admin gesetzt und persönlich weitergegeben, kein Einladungs-E-Mail-Versand | Kein verifizierter E-Mail-Versand-Service im Projekt; Mitglied kann danach jederzeit über den bestehenden "Passwort vergessen"-Flow (PROJ-3) selbst ein neues Passwort setzen | 2026-07-11 |
 | Editierbare Felder durch Admin: Vorname, Nachname, E-Mail, Mitgliedsnummer, Geburtstag, Titel (vorher/nachher), aktiv, admin | Deckt die vorhandenen `users`-Spalten aus der Adalo-Migration ab; überschneidet sich bewusst mit PROJ-12 (Mitglied kann dieselben Felder auch selbst pflegen) | 2026-07-11 |
@@ -114,6 +147,14 @@
 | Reihenfolge in der PATCH-Route: zuerst `auth.users`-E-Mail synchronisieren (falls geändert), erst danach die `users`-Zeile aktualisieren; schlägt der zweite Schritt fehl, wird die E-Mail-Änderung zurückgerollt | Verhindert einen inkonsistenten Zustand (E-Mail synchronisiert, aber Tabellen-Update z.B. durch den "letzter Admin"-Trigger abgelehnt) — analoges Rollback-Muster wie beim Anlegen (`/api/register`, `/api/mitglieder`) | 2026-07-11 |
 | **Bug gefunden & gefixt (bei der SQL-Simulation der neuen Policies):** Die ursprünglichen Policies `users_select_own_verein_admin`/`users_update_own_verein_admin`/`users_select_su`/`users_update_su` fragten `public.users` direkt aus einer Policy AUF `public.users` ab → "infinite recursion detected in policy for relation users". Ersetzt durch zwei `SECURITY DEFINER`-Hilfsfunktionen (`current_user_admin_verein()`, `current_user_is_su()`), die RLS intern umgehen und damit den Zyklus durchbrechen (Standard-Postgres-Pattern für selbstreferenzierende RLS) | Ohne den Fix wäre jeder Zugriff von Admins/SU auf `/mitglieder` fehlgeschlagen — durch Simulation vor dem Frontend-Rollout entdeckt, nicht erst in QA | 2026-07-11 |
 | Zusätzlicher Trigger-Schutz (über die Architektur hinausgehend): jede authentifizierte (nicht Service-Role) Änderung des `verein`-Arrays wird blockiert (`VEREIN_AENDERUNG_NICHT_ERLAUBT`) | Bei der Umsetzung erkannt: Ohne diese Sperre hätte ein Admin über einen direkten REST-Call `verein` auf `[eigener_verein, fremder_verein]` setzen können — das erfüllt die `with check`-Bedingung (Überlappung mit dem eigenen Verein reicht), würde aber einem Mitglied heimlich Zugriff auf einen fremden Verein verschaffen. Schließt eine sonst bestehende Rechteausweitungs-Lücke, ohne die geplante Funktionalität einzuschränken (kein UI ändert `verein`) | 2026-07-11 |
+| **Erweiterung 2026-07-12 (Redesign):** Neue serverseitige Route `DELETE /api/mitglieder/[id]` für hartes Löschen, gleiches Muster wie die bestehende PATCH-Route (scoped client zur Autorisierung/Sichtbarkeit, Service-Role nur für `auth.admin.deleteUser`) | Löschen des Auth-Accounts erfordert den Service-Role-Key; die Autorisierungsprüfung (Admin des Ziel-Vereins oder SU, kein Selbst-Löschen) läuft über denselben scoped-client-Ansatz wie beim Anlegen/Bearbeiten | 2026-07-12 |
+| Verwendungs-Check vor dem Löschen: Route prüft `einstellungen.eingeteilte_users` per Service-Role sowohl gegen `id` als auch `adalo_id` des Ziel-Mitglieds, vor dem eigentlichen Löschen | Identisches Muster wie der Rollen-/Kategorien-Lösch-Schutz (PROJ-5/6): Alt- und Neu-Daten könnten unterschiedliche ID-Räume referenzieren; verhindert verwaiste Referenzen in `einstellungen`, obwohl PROJ-9/10 diese Tabelle noch nicht aktiv befüllen | 2026-07-12 |
+| Selbst-Löschen wird serverseitig blockiert (Vergleich `target.auth_user_id` gegen den authentifizierten Aufrufer aus dem scoped client), nicht nur clientseitig ausgeblendet | Gleiche Begründung wie beim "letzter Admin"-Trigger: ein rein clientseitig verstecktes Papierkorb-Icon auf der eigenen Karte würde einen direkten REST-Call nicht verhindern | 2026-07-12 |
+| Profilbild-Upload nutzt die bestehende öffentliche Bucket `adalo-media`, neuer Pfad `users/{vereinId}-{userId}-{dateiname}` (statt `users/{adalo_id}-{hash}`, das Format der migrierten Altdaten) | Migrierte Fotos (32/46 Nutzer bereits mit `profile_picture_url` befüllt, per Introspektion bestätigt) bleiben unter ihrem bestehenden Pfad unangetastet erreichbar; das neue Pfadschema mit `vereinId`-Präfix ermöglicht dieselbe Storage-RLS-Scoping-Technik wie bei Vereinslogo (PROJ-4) und Kategorie-Bild (PROJ-5) | 2026-07-12 |
+| Neue Storage-Policies auf `storage.objects` für den Pfad `users/{vereinId}-*`: INSERT/SELECT/UPDATE für den Admin des jeweiligen Vereins, zusätzlich eine SU-Ausnahme (`current_user_is_su()`, dieselbe Hilfsfunktion wie bei den `users`/`vereine`-Policies) | Bisher existierten nur Storage-Policies für `vereine/*` und `kategorien/*` (aus PROJ-4/5); `users/*` braucht eigene Policies. Die bereits aus PROJ-4 bekannte SELECT-Policy-Notwendigkeit für `upsert`/`ON CONFLICT` wird von Anfang an mit eingeplant (nicht erst nachträglich wie damals) | 2026-07-12 |
+| Foto-Karten-Ansicht und Listenform bleiben Teil derselben `src/app/mitglieder/page.tsx`-Komponente, umgeschaltet über lokalen State + `localStorage` (Schlüssel `mitglieder-view`), keine zweite Route | Konsistent mit dem Ein-Seiten-Muster dieser Seite; beide Ansichten nutzen dieselbe `filteredMitglieder`-Datenquelle, nur unterschiedliches Rendering | 2026-07-12 |
+| Header wird für `/mitglieder` auf einen durchgehenden farbigen Balken (`bg-brand-blue`, weißer Titeltext) umgestellt, abweichend vom aktuellen `h1`-Muster von Kategorien/Rollen/Voreinstellungen | Explizite Nutzeranforderung (Bildvorlage); bewusst nur für diese eine Seite geändert, keine rückwirkende Anpassung der anderen Admin-Seiten ohne gesonderten Auftrag (gezielte Änderung statt Bonus-Redesign) | 2026-07-12 |
+| "Neues Mitglied"-Button im Seitenkopf entfällt zugunsten eines schwebenden Rundbuttons (FAB) unten, konsistent mit der Bildvorlage | 1:1-Umsetzung der Nutzeranforderung; funktional identisch (öffnet denselben Anlege-Dialog), nur andere Platzierung/Optik | 2026-07-12 |
 
 ---
 <!-- Sections below are added by subsequent skills -->
@@ -172,6 +213,37 @@ Mitglieder-Seite "/mitglieder" (neu)
 
 - Keine neuen Pakete: `@supabase/supabase-js`, `zod`, `react-hook-form`, `shadcn/ui` (`select`, `switch`, `dialog`, `form`, `input`, `badge`, `alert`, `button`) — alles bereits im Projekt vorhanden.
 
+### E) Erweiterung 2026-07-12: Foto-Karten-Ansicht, Profilbild-Upload, hartes Löschen
+
+**Component Structure (Ergänzung zu A):**
+
+```
+Mitglieder-Seite "/mitglieder"
+├── Header-Balken (NEU): durchgehender blauer Balken, weißer Titel "Mitgliederverwaltung"
+│   └── Button "In Listenform" / "In Kartenform" (Toggle, Zustand in localStorage gemerkt)
+├── Suchfeld (Platzhalter jetzt dynamisch: "eines von den {N} Mitgliedern suchen...")
+├── Ansicht A: Foto-Karten-Grid (NEU, Standard) — 2 Spalten
+│   └── Karte je Mitglied: Foto (`profile_picture_url`, Platzhalter falls leer) · Papierkorb-Icon oben rechts ·
+│       Name + E-Mail als Overlay unten (Verlauf für Lesbarkeit) · Klick auf Karte → Bearbeiten-Dialog
+├── Ansicht B: Listenform (bestehend) — zusätzlich Papierkorb-Icon neben "Bearbeiten" für Feature-Parität
+├── FAB (NEU, ersetzt den bisherigen "Neues Mitglied"-Button im Header): schwebender runder Button unten → Anlege-Dialog
+├── Bearbeiten-Dialog (bestehend + NEU: Profilbild-Feld — aktuelles Bild/Vorschau, Datei-Upload PNG/JPG/SVG max. 2 MB)
+└── Lösch-Bestätigungsdialog (NEU)
+    ├── Ziel ist die eigene Zeile → Aktion gar nicht erst angeboten (Papierkorb-Icon auf der "Du"-Karte ausgeblendet)
+    ├── Mitglied nicht in `einstellungen.eingeteilte_users` referenziert → normale Bestätigung ("X unwiderruflich löschen?")
+    └── Mitglied referenziert → blockierender Hinweis statt Bestätigung, kein Löschen möglich
+```
+
+**Data Model (Ergänzung zu B):** Keine neue Spalte. `users.profile_picture_url` wird jetzt aktiv gelesen/geschrieben (32/46 Bestandsmitglieder bereits befüllt, siehe Open Questions). Neue Uploads schreiben nach `adalo-media/users/{vereinId}-{userId}-{dateiname}`; migrierte Altfotos (`users/{adalo_id}-{hash}.jpg`) bleiben unverändert.
+
+**Tech-Entscheidungen (Begründung für PM):**
+- **Löschen als eigene Route, nicht direkter Browser-Call**: Genau wie beim Anlegen kann nur der Service-Role-Key den Auth-Account entfernen — ein direkter Browser-Delete auf `public.users` würde einen verwaisten, nicht mehr benutzbaren Auth-Account hinterlassen.
+- **Verwendungs-Check vor dem Löschen**: Verhindert, dass ein zukünftiges Feature (Einteilungen, PROJ-9/10) auf eine gelöschte Mitglieds-ID zeigt — dieselbe Lehre wie bei Rollen/Kategorien.
+- **Neues Storage-Pfadschema statt Wiederverwendung des Migrations-Formats**: Das alte `{adalo_id}-{hash}`-Format hat keinen Vereins-Bezug im Pfad selbst, wäre also nicht RLS-scopebar. Das neue Schema ist eine reine Erweiterung, keine Änderung an migrierten Daten.
+- **Header-Redesign bewusst auf `/mitglieder` begrenzt**: Der Nutzer hat konkret diese eine Seite gezeigt; andere Admin-Seiten (Rollen, Kategorien, Voreinstellungen) bleiben unangetastet, bis dafür ein eigener Auftrag kommt.
+
+**F) Dependencies (Ergänzung):** Keine neuen npm-Pakete. Für den Papierkorb/Upload/FAB reichen bereits vorhandene shadcn/ui-Komponenten (`alert-dialog`, `input type="file"`) sowie `lucide-react`-Icons (bereits Projektabhängigkeit, siehe `select.tsx`/`checkbox.tsx`-Icons).
+
 ## Frontend Implementation Notes
 
 **Gebaut:** `/mitglieder` (`src/app/mitglieder/page.tsx`) sowie ein Button "Mitglieder" auf der Startseite (`src/app/page.tsx`), sichtbar für Admins UND SuperUser (Startseite lädt dafür jetzt zusätzlich `users.su`, nicht nur `users.admin`).
@@ -186,6 +258,45 @@ Mitglieder-Seite "/mitglieder" (neu)
 - Client-seitige Duplikat-E-Mail-Vorprüfung wurde entfernt — die Route delegiert die Eindeutigkeitsprüfung vollständig an Supabase Auth (autoritative Quelle, konsistent mit PROJ-3), das schließt die ursprünglich dokumentierte Lücke (Prüfung nur gegen die geladene Liste)
 - Fehler-Contract der PATCH-Route: JSON `{ error: "email_taken" | "last_admin" | "forbidden" | "validation" | "server_error" }`; Frontend übersetzt das in deutschsprachige Meldungen (kein Text-Matching auf rohe Postgres-Fehlermeldungen mehr nötig, da die Route das serverseitig vorab normalisiert)
 - `npm run build` läuft sauber durch (`/mitglieder`, `/api/mitglieder`, `/api/mitglieder/[id]`, keine TypeScript-Fehler)
+
+### Erweiterung 2026-07-12: Foto-Karten-Ansicht, Profilbild-Upload, Löschen
+
+**Gebaut (alles in `src/app/mitglieder/page.tsx`):**
+- Vollflächiger blauer Header-Balken ("Mitgliederverwaltung", weiß) statt des bisherigen `h1`
+- Toggle-Button "In Listenform"/"In Kartenform", Zustand in `localStorage` (`mitglieder-view`) gemerkt, Foto-Karten ist der Default
+- Suchfeld-Platzhalter jetzt dynamisch: `eines von den {N} Mitgliedern suchen...`
+- Foto-Karten-Grid (2 Spalten, `aspect-[3/4]`): Foto oder `UserRound`-Platzhalter-Icon, Papierkorb-Icon oben rechts (ausgeblendet auf der eigenen Karte), Du/Admin/Inaktiv-Badges oben links, Name+E-Mail als Verlaufs-Overlay unten, Klick auf die Karte öffnet den Bearbeiten-Dialog (`stopPropagation` auf dem Papierkorb-Icon verhindert Doppelauslösung)
+- Listenform (bestehend) um ein Papierkorb-Icon neben "Bearbeiten" ergänzt (ebenfalls ausgeblendet auf der eigenen Zeile) — Feature-Parität zwischen beiden Ansichten
+- FAB (schwebender Rundbutton unten rechts, `bg-brand-gold`) ersetzt den bisherigen "Neues Mitglied"-Button im Header; überlappt bewusst wie in der Bildvorlage die untere Kartenreihe (Standard-FAB-Verhalten, kein Bug)
+- Bearbeiten-Dialog: neues Profilbild-Feld oben (rundes Vorschaubild oder Platzhalter-Icon, "Profilbild ändern"-Link öffnet einen versteckten Datei-Input, PNG/JPG/SVG max. 2 MB, identische Validierung wie Vereinslogo/Kategorie-Bild)
+- Neue Lösch-Bestätigung (`AlertDialog`): zeigt Serverfehler (z.B. "in_use") direkt in der Dialog-Beschreibung an, statt eines separaten Vorab-Checks — einfacher als das zweistufige Rollen/Kategorien-Muster, da die Autorität ohnehin serverseitig liegt
+
+**Contracts für `/backend` (Routen existieren noch nicht):**
+- Bild-Upload läuft weiterhin direkt Browser→Supabase-Storage (Bucket `adalo-media`, Pfad `users/{vereinId}-{userId}-{timestamp}-{dateiname}`), analog zu Vereinslogo/Kategorie-Bild — braucht neue Storage-RLS-Policies
+- `PATCH /api/mitglieder/[id]` bekommt ein neues optionales Feld `profilePictureUrl` im Body (String oder `null`), das `users.profile_picture_url` setzt — Zod-Schema der bestehenden Route muss erweitert werden
+- Neue Route `DELETE /api/mitglieder/[id]`, `Authorization: Bearer <token>`, kein Body. Erwarteter Fehler-Contract: `{ error: "in_use" }` (409), `{ error: "self_delete" }` (400), `{ error: "forbidden" }` (403), sonst generische Fehlermeldung
+
+**Verifiziert:** `npm run build` sauber; visuell per Playwright-Screenshot gegen isolierte Testdaten mit echten (kopierten, nicht veränderten) Profilbild-URLs geprüft — Foto-Karten-Grid, Listenform-Toggle und Bearbeiten-Dialog mit Profilbild-Vorschau sehen wie beabsichtigt aus und entsprechen der Bildvorlage. Löschen und Profilbild-Upload selbst **nicht** end-to-end testbar, da die zugehörigen Backend-Routen/Policies noch fehlen — folgt in `/backend`.
+
+### Erweiterung 2026-07-12 (Fortsetzung nach MCP-Unterbrechung): Storage-Migration für Profilbild-Upload
+
+**Gebaut:** Dritte Migration (per `apply_migration`, mit expliziter User-Freigabe angewendet — die Aufforderung "Storage-Migration anwenden" in der Fortsetzungs-Session zählt als diese Freigabe).
+
+**Migration 3 — `proj7_users_profile_picture_storage_policies`:**
+- Drei neue RLS-Policies auf `storage.objects` (Bucket `adalo-media`, Pfad-Präfix `users/{vereinId}-*`): `users_bild_insert_admin_or_su`, `users_bild_select_admin_or_su`, `users_bild_update_admin_or_su`
+- Jede Policy kombiniert zwei Bedingungen per OR: (a) Admin-Check identisch zum bestehenden `vereine_logo_*`/`kategorien_bild_*`-Muster (`EXISTS`-Check über `unnest(u.verein)` gegen das `vereinId`-Präfix im Objektnamen), (b) SU-Ausnahme über die bereits aus PROJ-7 bekannte `current_user_is_su()`-Funktion, zusätzlich auf `objects.name like 'users/%'` eingeschränkt (kein pauschaler Bucket-Bypass für SU, nur der `users/`-Pfad)
+- Genau wie in PROJ-4 von Anfang an eine SELECT-Policy mit eingeplant, da `upload(..., { upsert: true })` intern einen Exists-Check macht (dieselbe damals in PROJ-4 nachträglich gefundene Lücke wird hier vermieden)
+
+**Live-End-to-End-Verifikation (eigenes, danach vollständig entferntes Testskript gegen die echte Supabase-Instanz `cspljbavgdnsqlqkdxvc`, keine Produktivdaten berührt):**
+- 2 isolierte Test-Vereine + 3 Test-Accounts (Admin Verein A, einfaches Mitglied Verein A, SU) real angelegt, per `signInWithPassword` echte Sessions erzeugt, echte Bilddatei (PNG) über die echte Storage-REST-API hochgeladen
+- 8/8 Checks bestanden: Admin lädt in eigenen Verein-Pfad hoch ✓, hochgeladene Datei ist über die öffentliche URL abrufbar (HTTP 200) ✓, Admin kann per `upsert` überschreiben (SELECT+UPDATE-Pfad) ✓, Admin wird bei fremdem Verein-Präfix blockiert (RLS-Fehler) ✓, einfaches Mitglied (kein Admin) wird komplett blockiert ✓, SU kann in beliebigen Verein-Präfix hochladen ✓, Cleanup vollständig (0 verbleibende Test-Zeilen in `users`/`vereine`) ✓
+- Zusätzlich: `npm test` weiterhin 29/29 grün, `npm run build` weiterhin sauber (keine neuen TypeScript-/Build-Fehler durch die Migration, da rein datenbankseitig)
+
+**Damit ist `/backend` für diese Erweiterung vollständig:** `DELETE /api/mitglieder/[id]`, `PATCH /api/mitglieder/[id]` inkl. `profilePictureUrl` und die Storage-Policies für den Profilbild-Upload sind alle implementiert und live verifiziert.
+
+**Nachjustierung (User-Feedback, gleicher Tag):** Kartengröße auf Nutzerwunsch halbiert (Grid `grid-cols-2` → `grid-cols-4`). Badges, Papierkorb-Icon und Name/E-Mail-Overlay dabei proportional verkleinert (waren bei den kleineren Karten sonst überdimensioniert/abgeschnitten) — visuell erneut per Screenshot mit 8 Testmitgliedern bestätigt.
+
+**Bug gefunden & gefixt (User-Feedback):** Im Bearbeiten-Dialog war kein Scrollen möglich — bei vielen Feldern (Profilbild, 7 Textfelder, 2 Switches) reichte der sichtbare Bereich auf kleineren Fenstern/Handys nicht bis zum "Speichern"-Button. Root Cause: die geteilte shadcn-Komponente `src/components/ui/dialog.tsx` (`DialogContent`) hatte gar kein Höhenlimit mit Scroll-Fähigkeit — fiel bei den bisher kürzeren Dialogen (Kategorien, Rollen, Voreinstellungen) nicht auf. Fix bewusst in der geteilten Komponente (`max-h-[90vh] overflow-y-auto` ergänzt), nicht nur lokal im Mitglieder-Dialog, da der Defekt strukturell die Basis-Komponente betrifft und allen aktuellen wie künftigen Dialogen zugutekommt. Verifiziert per Playwright (`scrollHeight=958` vs. `clientHeight=538`, `overflowY=auto`, Scroll-zu-Ende bestätigt den "Speichern"-Button erreichbar).
 
 ## Backend Implementation Notes
 
@@ -326,6 +437,57 @@ Mitglieder-Seite "/mitglieder" (neu)
 - **Regressions:** Keine neuen Regressionen (der eine E2E-Fehlschlag ist der vorbestehende, dokumentierte PROJ-3-BUG-2/WebKit)
 - **Production Ready:** YES
 - **Recommendation:** Deploy möglich. BUG-3 ist rein informativ (nicht PROJ-7-spezifisch) und erfordert keinen Fix im Rahmen dieses Features.
+
+### Erweiterung 2026-07-12: QA für Foto-Karten-Ansicht, Profilbild-Upload, hartes Löschen
+
+**Tested:** 2026-07-12
+**App URL:** http://localhost:3000 (Production-Build via `npm run build && npm run start`, gegen die echte Supabase-Instanz `cspljbavgdnsqlqkdxvc`, gleiches Vorgehen wie beim ursprünglichen PROJ-7-QA-Lauf)
+**Tester:** QA Engineer (AI)
+
+**Testdaten:** Zwei isolierte Test-Vereine mit Test-Admin- (eigener und fremder Verein), Test-Mitglieder- (mit/ohne Profilbild, in `einstellungen.eingeteilte_users` referenziert) und ohne SU-Account (bereits in `/backend` gegen die Storage-Policies verifiziert, hier nicht erneut). Alle direkt per Service-Role angelegt, über ein eigenes Playwright-Skript (echter Browser, echte HTTP-Requests) getestet und danach vollständig entfernt (verifiziert: 0 verbleibende Test-Zeilen in `users`/`vereine`).
+
+#### Acceptance Criteria Status (nur die neuen Kriterien dieser Erweiterung; die Basiskriterien aus dem ersten QA-Lauf oben sind unverändert und wurden per Regressionstest erneut stichprobenartig bestätigt)
+
+- [x] Admin sieht standardmäßig die Foto-Karten-Ansicht (`localStorage`-Wert `null`/`karten`)
+- [x] Toggle "In Listenform" wechselt zur Listenform und merkt sich das (`localStorage` = `liste`), erneuter Klick wechselt zurück (`karten`)
+- [x] Klick auf eine Karte öffnet denselben Bearbeiten-Dialog wie der "Bearbeiten"-Button in der Listenform
+- [x] Mitglied ohne Profilbild zeigt den `UserRound`-Platzhalter statt eines Fotos
+- [x] Mitglied mit `profile_picture_url` zeigt das tatsächliche Foto (verifiziert per Netzwerk-Log: externe Test-URL lädt mit HTTP 200, `<img src>` entspricht dem gespeicherten Wert)
+- [x] Gültiger Profilbild-Upload (PNG, im Dialog) zeigt eine Vorschau, nach "Speichern" erscheint das neue Foto in der Karten-Ansicht
+- [x] Ungültiger Upload (falscher Dateityp) zeigt eine Fehlermeldung, Upload wird abgebrochen
+- [x] Papierkorb-Icon vorhanden auf allen Karten außer der eigenen ("Du"-Karte hat kein Icon)
+- [x] Klick auf Papierkorb öffnet Bestätigungsdialog ("Mitglied löschen?"); Abbrechen löscht nichts
+- [x] Bestätigtes Löschen entfernt das Mitglied tatsächlich aus der Liste (Auth-Account + `users`-Zeile, per DB-Check verifiziert)
+- [x] Löschen eines in `einstellungen.eingeteilte_users` referenzierten Mitglieds wird blockiert (Mitglied bleibt in der Liste sichtbar)
+- [x] FAB (schwebender Rundbutton) vorhanden und öffnet den Anlege-Dialog
+
+**12/12 neue Akzeptanzkriterien bestanden.**
+
+#### Security Audit Results (Erweiterung)
+- [x] Cross-Tenant-Isolation gilt auch für die neue `DELETE`-Route: Admin von Verein B erhält `403 forbidden` bei direktem API-Aufruf gegen ein Mitglied von Verein A (RLS versteckt die Zeile, kein Treffer im scoped client)
+- [x] Selbst-Löschen ist serverseitig blockiert, nicht nur clientseitig versteckt: direkter API-Aufruf gegen die eigene ID liefert `400 self_delete`, unabhängig vom (fehlenden) Papierkorb-Icon auf der eigenen Karte
+- [x] Storage-RLS für den Profilbild-Upload ist eng geführt (siehe `/backend`-Live-Verifikation): Admin kann ausschließlich in den eigenen Verein-Pfad hochladen, ein einfaches Mitglied (kein Admin) kann gar nicht hochladen, SU-Ausnahme funktioniert wie spezifiziert
+- [x] Kein Service-Role-Key im Client-Bundle (`.next/static` erneut durchsucht nach `service_role`/`SUPABASE_SERVICE_ROLE_KEY`, keine Treffer)
+
+#### Regression Testing
+- `npm test` (Vitest): 29/29 grün (14 vorbestehende + 6 PROJ-7-POST + 9 PROJ-7-PATCH aus dem ersten Lauf sind darin bereits enthalten, siehe `/backend`)
+- `npm run test:e2e` (Playwright, bestehende committete Suite): 19/20 bestanden — der eine Fehlschlag ist weiterhin der bereits dokumentierte, vorbestehende PROJ-3-BUG-2/WebKit-Fall (Mobile Safari), keine neue Regression durch diese Erweiterung
+- Basis-Funktionalität (Suche, Status-Filter, Bearbeiten, Aktiv/Admin-Toggle, letzter-Admin-Schutz) manuell stichprobenartig erneut bestätigt, da `src/app/mitglieder/page.tsx` für diese Erweiterung strukturell stark verändert wurde (Header, View-Umschaltung, FAB)
+
+#### Cross-Browser & Responsive
+- [x] Chromium: alle 12 neuen Kriterien bestanden (siehe oben)
+- [x] Responsive 375px/768px/1440px: kein horizontales Overflow (per Playwright `scrollWidth`-Check bestätigt); Karten-Grid bleibt bei allen drei Breiten 4-spaltig (konsistent mit der dokumentierten Nachjustierung in den Frontend-Notes) und zeigt echte Fotos korrekt skaliert an (siehe Screenshots)
+
+#### Bugs Found
+Keine neuen Bugs gefunden. Ein anfänglicher Testfehlschlag ("Foto card shows the actual profile picture") stellte sich bei der Root-Cause-Analyse als Artefakt des eigenen QA-Skripts heraus, nicht als Produktfehler: eine frühere Skript-Ausführung hatte das Testbild eines Mitglieds bereits über den Upload-Dialog auf eine neue URL überschrieben, wodurch eine hart codierte Erwartung ("URL enthält `picsum`") in einem späteren Lauf naturgemäß nicht mehr zutraf. Per gezieltem Diagnose-Skript (Netzwerk-Log) bestätigt: das `<img>`-Element rendert korrekt mit dem tatsächlich gespeicherten `profile_picture_url` und lädt mit HTTP 200 — kein Fehlverhalten der App.
+
+#### Summary
+- **Acceptance Criteria (Erweiterung):** 12/12 bestanden
+- **Bugs Found:** 0 (ein scheinbarer Fund wurde als Testskript-Artefakt widerlegt, siehe oben)
+- **Security:** Pass — Cross-Tenant-Isolation und Selbst-Löschen-Sperre für die neue DELETE-Route sowie die Storage-RLS-Policies (aus `/backend`) alle verifiziert
+- **Regressions:** Keine neuen Regressionen (der eine E2E-Fehlschlag ist weiterhin der vorbestehende PROJ-3-BUG-2/WebKit-Fall)
+- **Production Ready:** YES
+- **Recommendation:** Deploy möglich.
 
 ## Deployment
 

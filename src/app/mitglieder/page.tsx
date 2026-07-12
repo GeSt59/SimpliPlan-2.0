@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { LayoutGrid, List, Plus, Trash2, UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +35,25 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const PICTURE_BUCKET = "adalo-media";
+const MAX_PICTURE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_PICTURE_TYPES = ["image/png", "image/jpeg", "image/svg+xml"];
+const VIEW_STORAGE_KEY = "mitglieder-view";
 
 type Mitglied = {
   id: number;
+  adalo_id: number | null;
   auth_user_id: string | null;
   vorname: string | null;
   nachname: string | null;
@@ -47,7 +64,10 @@ type Mitglied = {
   titel_nachher: string | null;
   aktiv: boolean | null;
   admin: boolean | null;
+  profile_picture_url: string | null;
 };
+
+type View = "karten" | "liste";
 
 type Verein = { id: number; vereinsname: string | null };
 
@@ -98,6 +118,17 @@ export default function MitgliederPage() {
   const [editTarget, setEditTarget] = useState<Mitglied | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  const [pictureUrl, setPictureUrl] = useState<string | null>(null);
+  const [pictureFile, setPictureFile] = useState<File | null>(null);
+  const [picturePreview, setPicturePreview] = useState<string | null>(null);
+  const [pictureError, setPictureError] = useState<string | null>(null);
+
+  const [view, setView] = useState<View>("karten");
+
+  const [deleteTarget, setDeleteTarget] = useState<Mitglied | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const createForm = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
@@ -182,6 +213,21 @@ export default function MitgliederPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vereinId]);
 
+  useEffect(() => {
+    const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    if (stored === "karten" || stored === "liste") {
+      setView(stored);
+    }
+  }, []);
+
+  function toggleView() {
+    setView((prev) => {
+      const next: View = prev === "karten" ? "liste" : "karten";
+      window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+      return next;
+    });
+  }
+
   async function loadMitglieder(vId: number) {
     setListLoading(true);
     setListError(null);
@@ -189,7 +235,7 @@ export default function MitgliederPage() {
     const { data, error } = await supabase
       .from("users")
       .select(
-        "id, auth_user_id, vorname, nachname, email, mitgliedsnumer, geburtstag, vorher_titel, titel_nachher, aktiv, admin"
+        "id, adalo_id, auth_user_id, vorname, nachname, email, mitgliedsnumer, geburtstag, vorher_titel, titel_nachher, aktiv, admin, profile_picture_url"
       )
       .contains("verein", [vId])
       .order("nachname", { ascending: true });
@@ -266,6 +312,10 @@ export default function MitgliederPage() {
   function openEditDialog(m: Mitglied) {
     setEditTarget(m);
     setEditError(null);
+    setPictureUrl(m.profile_picture_url);
+    setPictureFile(null);
+    setPicturePreview(null);
+    setPictureError(null);
     editForm.reset({
       vorname: m.vorname ?? "",
       nachname: m.nachname ?? "",
@@ -279,12 +329,49 @@ export default function MitgliederPage() {
     });
   }
 
+  function handlePictureChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!ALLOWED_PICTURE_TYPES.includes(file.type)) {
+      setPictureError("Nur PNG-, JPG- oder SVG-Dateien sind erlaubt.");
+      return;
+    }
+    if (file.size > MAX_PICTURE_BYTES) {
+      setPictureError("Die Datei darf maximal 2 MB groß sein.");
+      return;
+    }
+
+    setPictureError(null);
+    setPictureFile(file);
+    setPicturePreview(URL.createObjectURL(file));
+  }
+
   async function onEditSubmit(values: EditValues) {
     if (!editTarget || !vereinId) return;
     setEditSaving(true);
     setEditError(null);
 
     try {
+      let newPictureUrl = pictureUrl;
+
+      if (pictureFile) {
+        const path = `users/${vereinId}-${editTarget.id}-${Date.now()}-${pictureFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from(PICTURE_BUCKET)
+          .upload(path, pictureFile, { upsert: true, contentType: pictureFile.type });
+
+        if (uploadError) {
+          setEditError("Bild-Upload fehlgeschlagen. Bitte versuche es erneut.");
+          setEditSaving(false);
+          return;
+        }
+
+        const { data: publicUrlData } = supabase.storage.from(PICTURE_BUCKET).getPublicUrl(path);
+        newPictureUrl = publicUrlData.publicUrl;
+      }
+
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
 
@@ -304,6 +391,7 @@ export default function MitgliederPage() {
           titelNachher: values.titelNachher.trim() || null,
           aktiv: values.aktiv,
           admin: values.admin,
+          profilePictureUrl: newPictureUrl,
         }),
       });
 
@@ -331,6 +419,49 @@ export default function MitgliederPage() {
     }
   }
 
+  function openDeleteDialog(m: Mitglied) {
+    setDeleteTarget(m);
+    setDeleteError(null);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || !vereinId) return;
+    setDeleteSaving(true);
+    setDeleteError(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const res = await fetch(`/api/mitglieder/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        if (body?.error === "in_use") {
+          setDeleteError("Dieses Mitglied ist bereits einer Einteilung zugeordnet und kann deshalb nicht gelöscht werden.");
+        } else if (body?.error === "self_delete") {
+          setDeleteError("Du kannst dich nicht selbst löschen.");
+        } else if (body?.error === "forbidden") {
+          setDeleteError("Keine Berechtigung für diese Aktion.");
+        } else {
+          setDeleteError("Löschen fehlgeschlagen. Bitte versuche es erneut.");
+        }
+        setDeleteSaving(false);
+        return;
+      }
+
+      setDeleteTarget(null);
+      await loadMitglieder(vereinId);
+    } catch {
+      setDeleteError("Server nicht erreichbar. Bitte versuche es später erneut.");
+    } finally {
+      setDeleteSaving(false);
+    }
+  }
+
   if (checking) {
     return <main className="min-h-screen bg-background" />;
   }
@@ -340,19 +471,21 @@ export default function MitgliederPage() {
   }
 
   return (
-    <main className="flex min-h-screen justify-center bg-background px-4 py-10">
-      <div className="flex w-full max-w-2xl flex-col gap-8">
-        <div className="flex items-center justify-between">
-          <h1 className="font-heading text-2xl font-bold text-brand-blue">Mitglieder</h1>
-          {vereinId && (
-            <Button
-              onClick={openCreateDialog}
-              className="bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
-            >
-              Neues Mitglied
-            </Button>
-          )}
-        </div>
+    <main className="min-h-screen bg-background pb-28">
+      <div className="bg-brand-blue px-4 py-6 text-center">
+        <h1 className="font-heading text-2xl font-bold text-white">Mitgliederverwaltung</h1>
+      </div>
+
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6">
+        {vereinId && (
+          <Button
+            onClick={toggleView}
+            className="h-12 w-full gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+          >
+            {view === "karten" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+            {view === "karten" ? "In Listenform" : "In Kartenform"}
+          </Button>
+        )}
 
         {isSu && (
           <div className="flex flex-col gap-1.5">
@@ -390,7 +523,11 @@ export default function MitgliederPage() {
           <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Input
-                placeholder="Suche nach Name oder E-Mail..."
+                placeholder={
+                  mitglieder.length > 0
+                    ? `eines von den ${mitglieder.length} Mitgliedern suchen...`
+                    : "Suche nach Name oder E-Mail..."
+                }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="sm:flex-1"
@@ -430,7 +567,7 @@ export default function MitgliederPage() {
               <p className="text-sm text-muted-foreground">Keine Mitglieder gefunden.</p>
             )}
 
-            {!listLoading && hasOtherMitglieder && filteredMitglieder.length > 0 && (
+            {!listLoading && hasOtherMitglieder && filteredMitglieder.length > 0 && view === "liste" && (
               <ul className="flex flex-col gap-3">
                 {filteredMitglieder.map((m) => (
                   <li
@@ -467,10 +604,87 @@ export default function MitgliederPage() {
                       <Button variant="outline" size="sm" onClick={() => openEditDialog(m)}>
                         Bearbeiten
                       </Button>
+                      {m.auth_user_id !== ownAuthUserId && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => openDeleteDialog(m)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </li>
                 ))}
               </ul>
+            )}
+
+            {!listLoading && hasOtherMitglieder && filteredMitglieder.length > 0 && view === "karten" && (
+              <div className="grid grid-cols-4 gap-2">
+                {filteredMitglieder.map((m) => (
+                  <div
+                    key={m.id}
+                    onClick={() => openEditDialog(m)}
+                    className="group relative aspect-[3/4] cursor-pointer overflow-hidden rounded-lg bg-muted"
+                  >
+                    {m.profile_picture_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={m.profile_picture_url}
+                        alt={`${m.vorname ?? ""} ${m.nachname ?? ""}`}
+                        className={`h-full w-full object-cover ${!m.aktiv ? "grayscale" : ""}`}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-muted">
+                        <UserRound className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
+
+                    <div className="absolute left-1 top-1 flex flex-wrap gap-0.5">
+                      {m.auth_user_id === ownAuthUserId && (
+                        <Badge variant="secondary" className="h-4 shrink-0 px-1 text-[9px] leading-none">
+                          Du
+                        </Badge>
+                      )}
+                      {m.admin && (
+                        <Badge variant="secondary" className="h-4 shrink-0 px-1 text-[9px] leading-none">
+                          Admin
+                        </Badge>
+                      )}
+                      {!m.aktiv && (
+                        <Badge
+                          variant="outline"
+                          className="h-4 shrink-0 bg-background/80 px-1 text-[9px] leading-none text-muted-foreground"
+                        >
+                          Inaktiv
+                        </Badge>
+                      )}
+                    </div>
+
+                    {m.auth_user_id !== ownAuthUserId && (
+                      <button
+                        type="button"
+                        aria-label="Mitglied löschen"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDeleteDialog(m);
+                        }}
+                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-gold text-black shadow"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-1.5 pt-6">
+                      <p className="truncate text-[11px] font-semibold leading-tight text-white">
+                        {m.nachname} {m.vorname}
+                      </p>
+                      <p className="truncate text-[9px] leading-tight text-white/80">{m.email}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </>
         )}
@@ -479,6 +693,17 @@ export default function MitgliederPage() {
           <Link href="/">Zurück</Link>
         </Button>
       </div>
+
+      {vereinId && (
+        <button
+          type="button"
+          onClick={openCreateDialog}
+          aria-label="Neues Mitglied anlegen"
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
@@ -577,6 +802,32 @@ export default function MitgliederPage() {
                   <AlertDescription>{editError}</AlertDescription>
                 </Alert>
               )}
+
+              <div className="flex flex-col items-center gap-2">
+                {picturePreview || pictureUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={picturePreview ?? pictureUrl ?? undefined}
+                    alt="Profilbild"
+                    className="h-24 w-24 rounded-full border object-cover"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full border bg-muted">
+                    <UserRound className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                )}
+                <Label htmlFor="profilbild" className="cursor-pointer text-sm text-brand-blue underline">
+                  Profilbild ändern
+                </Label>
+                <Input
+                  id="profilbild"
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  className="hidden"
+                  onChange={handlePictureChange}
+                />
+                {pictureError && <p className="text-sm text-destructive">{pictureError}</p>}
+              </div>
 
               <FormField
                 control={editForm.control}
@@ -715,6 +966,25 @@ export default function MitgliederPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mitglied löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteError
+                ? deleteError
+                : `„${deleteTarget?.vorname} ${deleteTarget?.nachname}" wird unwiderruflich gelöscht, inklusive Login-Zugang. Diese Aktion kann nicht rückgängig gemacht werden.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction disabled={deleteSaving} onClick={() => void confirmDelete()}>
+              {deleteSaving ? "Wird gelöscht..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
