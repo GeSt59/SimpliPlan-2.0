@@ -2,30 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { ArrowLeft, Check, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,46 +20,31 @@ import {
 
 const NAME_MAX_LENGTH = 50;
 
-type Rolle = {
-  id: number;
+type RolleRow = {
+  key: string;
+  id: number | null; // null = neu, noch nicht gespeichert
   name: string;
-  gleich_angemeldet: boolean | null;
-  adalo_id: number | null;
+  gleichAngemeldet: boolean;
+  adaloId: number | null;
+  saving: boolean;
+  error: string | null;
 };
 
-const rolleSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Name ist erforderlich")
-    .max(NAME_MAX_LENGTH, `Maximal ${NAME_MAX_LENGTH} Zeichen`),
-  gleichAngemeldet: z.boolean(),
-});
-
-type RolleValues = z.infer<typeof rolleSchema>;
+type DeleteTarget = { id: number; name: string; adaloId: number | null };
 
 export default function RollenPage() {
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [vereinId, setVereinId] = useState<number | null>(null);
 
-  const [rollen, setRollen] = useState<Rolle[]>([]);
+  const [rows, setRows] = useState<RolleRow[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const [deleteTarget, setDeleteTarget] = useState<Rolle | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deleteBlocked, setDeleteBlocked] = useState(false);
   const [deleteChecking, setDeleteChecking] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  const form = useForm<RolleValues>({
-    resolver: zodResolver(rolleSchema),
-    defaultValues: { name: "", gleichAngemeldet: false },
-  });
 
   useEffect(() => {
     let active = true;
@@ -140,75 +106,91 @@ export default function RollenPage() {
       return;
     }
 
-    setRollen(data ?? []);
+    setRows(
+      (data ?? []).map((r) => ({
+        key: String(r.id),
+        id: r.id,
+        name: r.name,
+        gleichAngemeldet: !!r.gleich_angemeldet,
+        adaloId: r.adalo_id,
+        saving: false,
+        error: null,
+      }))
+    );
     setListLoading(false);
   }
 
-  function openCreateDialog() {
-    setEditingId(null);
-    setFormError(null);
-    form.reset({ name: "", gleichAngemeldet: false });
-    setDialogOpen(true);
+  function updateRow(key: string, patch: Partial<RolleRow>) {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch, error: null } : r)));
   }
 
-  function openEditDialog(rolle: Rolle) {
-    setEditingId(rolle.id);
-    setFormError(null);
-    form.reset({ name: rolle.name, gleichAngemeldet: !!rolle.gleich_angemeldet });
-    setDialogOpen(true);
+  function handleAddRow() {
+    setRows((prev) => {
+      if (prev.some((r) => r.id === null)) return prev;
+      return [
+        { key: `new-${Date.now()}`, id: null, name: "", gleichAngemeldet: false, adaloId: null, saving: false, error: null },
+        ...prev,
+      ];
+    });
   }
 
-  async function onSubmit(values: RolleValues) {
+  async function handleSaveRow(row: RolleRow) {
     if (!vereinId) return;
-    setSaving(true);
-    setFormError(null);
 
-    const trimmedName = values.name.trim();
-    const duplicate = rollen.some(
-      (r) => r.id !== editingId && r.name.trim().toLowerCase() === trimmedName.toLowerCase()
-    );
-
-    if (duplicate) {
-      setFormError("Diese Rolle existiert bereits.");
-      setSaving(false);
+    const trimmedName = row.name.trim();
+    if (!trimmedName) {
+      updateRow(row.key, { error: "Name ist erforderlich" });
       return;
     }
 
-    try {
-      if (editingId) {
-        const { error: updateError } = await supabase
-          .from("rollen")
-          .update({ name: trimmedName, gleich_angemeldet: values.gleichAngemeldet })
-          .eq("id", editingId);
+    const duplicate = rows.some(
+      (r) => r.key !== row.key && r.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (duplicate) {
+      updateRow(row.key, { error: "Diese Rolle existiert bereits." });
+      return;
+    }
 
-        if (updateError) {
-          setFormError("Speichern fehlgeschlagen. Bitte versuche es erneut.");
-          setSaving(false);
+    updateRow(row.key, { saving: true, error: null });
+
+    try {
+      if (row.id == null) {
+        const { error } = await supabase
+          .from("rollen")
+          .insert({ name: trimmedName, gleich_angemeldet: row.gleichAngemeldet, vereine: [vereinId] });
+
+        if (error) {
+          updateRow(row.key, { saving: false, error: "Speichern fehlgeschlagen. Bitte versuche es erneut." });
           return;
         }
       } else {
-        const { error: insertError } = await supabase
+        const { error } = await supabase
           .from("rollen")
-          .insert({ name: trimmedName, gleich_angemeldet: values.gleichAngemeldet, vereine: [vereinId] });
+          .update({ name: trimmedName, gleich_angemeldet: row.gleichAngemeldet })
+          .eq("id", row.id);
 
-        if (insertError) {
-          setFormError("Speichern fehlgeschlagen. Bitte versuche es erneut.");
-          setSaving(false);
+        if (error) {
+          updateRow(row.key, { saving: false, error: "Speichern fehlgeschlagen. Bitte versuche es erneut." });
           return;
         }
       }
 
-      setDialogOpen(false);
       await loadRollen(vereinId);
     } catch {
-      setFormError("Server nicht erreichbar. Bitte versuche es später erneut.");
-    } finally {
-      setSaving(false);
+      updateRow(row.key, { saving: false, error: "Server nicht erreichbar. Bitte versuche es später erneut." });
     }
   }
 
-  async function openDeleteDialog(rolle: Rolle) {
-    setDeleteTarget(rolle);
+  async function handleDeleteClick(row: RolleRow) {
+    if (row.id == null) {
+      setRows((prev) => prev.filter((r) => r.key !== row.key));
+      return;
+    }
+    await openDeleteDialog({ id: row.id, name: row.name, adaloId: row.adaloId });
+  }
+
+  async function openDeleteDialog(target: DeleteTarget) {
+    setDeleteTarget(target);
     setDeleteError(null);
     setDeleteChecking(true);
     setDeleteBlocked(false);
@@ -217,9 +199,9 @@ export default function RollenPage() {
     // neu angelegte Zeitbereiche (PROJ-9) werden dagegen die Supabase-`id`
     // verwenden, da neue Rollen keine `adalo_id` mehr haben. Beide Räume
     // müssen daher geprüft werden (siehe PROJ-5-Erkenntnis, hier vorab übernommen).
-    const usageFilters = [`rollen.cs.{${rolle.id}}`];
-    if (rolle.adalo_id != null) {
-      usageFilters.push(`rollen.cs.{${rolle.adalo_id}}`);
+    const usageFilters = [`rollen.cs.{${target.id}}`];
+    if (target.adaloId != null) {
+      usageFilters.push(`rollen.cs.{${target.adaloId}}`);
     }
 
     const { count, error } = await supabase
@@ -260,131 +242,80 @@ export default function RollenPage() {
   }
 
   return (
-    <main className="flex min-h-screen justify-center bg-background px-4 py-10">
-      <div className="flex w-full max-w-lg flex-col gap-8">
-        <div className="flex items-center justify-between">
-          <h1 className="font-heading text-2xl font-bold text-brand-blue">Rollen</h1>
-          <Button
-            onClick={openCreateDialog}
-            className="bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
-          >
-            Neue Rolle
-          </Button>
-        </div>
+    <div className="flex min-h-screen flex-col bg-background pb-28">
+      <header className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-4 text-white">
+        <Link href="/" aria-label="Zurück">
+          <ArrowLeft className="h-6 w-6" />
+        </Link>
+        <h1 className="text-center font-heading text-lg font-bold">Rolle ändern/löschen</h1>
+        <span />
+      </header>
 
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
         {listError && (
           <Alert variant="destructive">
             <AlertDescription>{listError}</AlertDescription>
           </Alert>
         )}
 
-        {!listLoading && !listError && rollen.length === 0 && (
-          <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed p-10 text-center">
-            <p className="text-sm text-muted-foreground">Noch keine Rollen vorhanden.</p>
-            <Button
-              onClick={openCreateDialog}
-              variant="outline"
-              className="font-semibold uppercase tracking-wide"
-            >
-              Neue Rolle anlegen
-            </Button>
-          </div>
+        {!listLoading && !listError && rows.length === 0 && (
+          <p className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+            Noch keine Rollen vorhanden. Über den Button unten kannst du eine neue Rolle anlegen.
+          </p>
         )}
 
-        {!listLoading && rollen.length > 0 && (
+        {!listLoading && rows.length > 0 && (
           <ul className="flex flex-col gap-3">
-            {rollen.map((rolle) => (
-              <li
-                key={rolle.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <span className="min-w-0 truncate text-sm font-medium text-foreground">{rolle.name}</span>
-                  {rolle.gleich_angemeldet && (
-                    <Badge variant="secondary" className="shrink-0">
-                      Automatisch angemeldet
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEditDialog(rolle)}>
-                    Bearbeiten
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => void openDeleteDialog(rolle)}
+            {rows.map((row) => (
+              <li key={row.key} className="rounded-lg border bg-white p-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveRow(row)}
+                    disabled={row.saving}
+                    aria-label="Speichern"
+                    className="flex h-10 w-14 shrink-0 items-center justify-center rounded-md bg-brand-blue text-white hover:bg-brand-blue/90 disabled:opacity-50"
                   >
-                    Löschen
-                  </Button>
+                    <Check className="h-5 w-5" />
+                  </button>
+                  <Input
+                    value={row.name}
+                    onChange={(e) => updateRow(row.key, { name: e.target.value })}
+                    maxLength={NAME_MAX_LENGTH}
+                    placeholder="Name eingeben..."
+                    className="min-w-0 flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteClick(row)}
+                    aria-label="Löschen"
+                    className="shrink-0 text-brand-gold hover:opacity-80"
+                  >
+                    <Trash2 className="h-6 w-6" />
+                  </button>
                 </div>
+                <label className="mt-2 flex items-center gap-2 pl-1 text-sm text-muted-foreground">
+                  <Checkbox
+                    checked={row.gleichAngemeldet}
+                    onCheckedChange={(checked) => updateRow(row.key, { gleichAngemeldet: !!checked })}
+                  />
+                  Automatisch angemeldet
+                </label>
+                {row.error && <p className="mt-1 pl-1 text-sm text-destructive">{row.error}</p>}
               </li>
             ))}
           </ul>
         )}
-
-        <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-          <Link href="/">Zurück</Link>
-        </Button>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Rolle bearbeiten" : "Rolle anlegen"}</DialogTitle>
-          </DialogHeader>
-
-          <Form {...form}>
-            <form className="flex flex-col gap-4" onSubmit={form.handleSubmit(onSubmit)}>
-              {formError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{formError}</AlertDescription>
-                </Alert>
-              )}
-
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Name eingeben..." maxLength={NAME_MAX_LENGTH} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="gleichAngemeldet"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center gap-2 space-y-0">
-                    <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} id="gleichAngemeldet" />
-                    </FormControl>
-                    <FormLabel htmlFor="gleichAngemeldet" className="font-normal">
-                      Automatisch angemeldet
-                    </FormLabel>
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  disabled={saving}
-                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
-                >
-                  {saving ? "Wird gespeichert..." : "Speichern"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <button
+        type="button"
+        onClick={handleAddRow}
+        aria-label="Neue Rolle"
+        className="fixed bottom-8 left-1/2 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
+      >
+        <Plus className="h-7 w-7" />
+      </button>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -408,6 +339,6 @@ export default function RollenPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+    </div>
   );
 }
