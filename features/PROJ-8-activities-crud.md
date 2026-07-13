@@ -1,8 +1,8 @@
 # PROJ-8: Activities CRUD
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-12
-**Last Updated:** 2026-07-12 (beide QA-Bugs gefixt und verifiziert, production-ready)
+**Last Updated:** 2026-07-13 (deployed to production)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Activity-Zugriff auf den eigenen Verein beschränken
@@ -350,4 +350,15 @@ Startseite "/" (bestehend)
 - **Production Ready:** **YES** — keine offenen Critical/High/Medium-Bugs mehr, beide gefundenen Bugs wurden auf Nutzerwunsch vor der Freigabe gefixt und live nachgetestet.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-13
+**Production URL:** https://simpliplan.toolies.eu/activities
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei jedem Push auf `main`, `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe PROJ-4).
+
+- Pre-Deployment-Checks: `npm run build` sauber, QA Approved (beide gefundenen Bugs gefixt), DB-Migration bereits während `/backend` live angewendet. `npm run lint` weiterhin am vorbestehenden, PROJ-4-unabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- **Sicherheitsvorfall während des Deploys vermieden:** Der erste Push wurde vom Auto-Mode-Klassifikator blockiert, weil der Commit versehentlich zwei Referenz-Screenshots (`Mitgliederverwaltung.jpg`, `Profil anzeigen.jpg`) aus `public/` enthielt, die reale Namen, E-Mail-Adressen und Fotos echter Lions-Mitglieder aus der alten Adalo-App zeigen. Nach Rücksprache mit dem User wurde der (nie gepushte) Commit per `git reset --soft` + `git restore --staged` neu aufgebaut, ohne diese beiden Dateien — sie bleiben als ungetrackte Dateien lokal für künftige Design-Referenz erhalten (u.a. für PROJ-12 Profil-Verwaltung), landen aber nicht in der Git-Historie/GitHub. Alle übrigen Referenz-Screenshots (`activities.jpg`, `Activity anlegen.jpg`, `Zeitbreiche.jpg`, `Kategorien.jpg`, `Rollen.jpg`, `Startscreen.jpg`) enthalten keine personenbezogenen Daten und wurden regulär committet
+- Ein Commit `feat(PROJ-8): ...` (Spec, Architecture, Frontend, Backend und QA gebündelt, wie bei PROJ-5/6/7) — gepusht nach `main`
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Workflow "Deploy to Hetzner" (per GitHub-API bestätigt: `completed` / `success`)
+- Tag `v1.5.0-PROJ-8` erstellt und gepusht
+- Post-Deployment-Verifikation (read-only): `/`, `/activities`, `/activities/[id]`, `/activities/archiv` liefern alle HTTP 200 auf der echten Domain; unauthentifizierter Zugriff redirected korrekt zu "/"; keine Browser-Konsolenfehler auf der Startseite
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-8, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3/4/5/6/7
