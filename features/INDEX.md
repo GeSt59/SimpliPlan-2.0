@@ -22,7 +22,7 @@
 | PROJ-5 | Kategorien-Verwaltung | P0 | Deployed | PROJ-4 | [PROJ-5](PROJ-5-kategorien-verwaltung.md) | 2026-07-08 |
 | PROJ-6 | Rollen-Verwaltung (Kassier, Kellner, …) | P0 | Deployed | PROJ-4 | [PROJ-6](PROJ-6-rollen-verwaltung.md) | 2026-07-08 |
 | PROJ-7 | Mitgliederverwaltung (Admin) | P0 | Deployed | PROJ-4 | [PROJ-7](PROJ-7-mitgliederverwaltung.md) | 2026-07-08 |
-| PROJ-8 | Activities CRUD | P0 | Roadmap | PROJ-5 | - | 2026-07-08 |
+| PROJ-8 | Activities CRUD | P0 | Approved | PROJ-5 | [PROJ-8](PROJ-8-activities-crud.md) | 2026-07-08 |
 | PROJ-9 | Zeitbereiche CRUD | P0 | Roadmap | PROJ-8, PROJ-6 | - | 2026-07-08 |
 | PROJ-10 | Mitglied-Anmeldung zu Zeitbereichen | P0 | Roadmap | PROJ-9 | - | 2026-07-08 |
 | PROJ-11 | Teilnehmer-Übersicht (Admin) | P0 | Roadmap | PROJ-9, PROJ-10 | - | 2026-07-08 |

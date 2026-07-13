@@ -125,6 +125,11 @@ export default function Home() {
               <Link href="/mitglieder">Mitglieder</Link>
             </Button>
           )}
+          {isAdmin && (
+            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+              <Link href="/activities">Activities</Link>
+            </Button>
+          )}
           <Button
             onClick={handleLogout}
             className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
