@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -311,18 +312,16 @@ export default function KategorienPage() {
   }
 
   return (
-    <main className="flex min-h-screen justify-center bg-background px-4 py-10">
-      <div className="flex w-full max-w-lg flex-col gap-8">
-        <div className="flex items-center justify-between">
-          <h1 className="font-heading text-2xl font-bold text-brand-blue">Kategorien</h1>
-          <Button
-            onClick={openCreateDialog}
-            className="bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
-          >
-            Neue Kategorie
-          </Button>
-        </div>
+    <div className="flex min-h-screen flex-col bg-background pb-28">
+      <header className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-4 text-white">
+        <Link href="/" aria-label="Zurück">
+          <ArrowLeft className="h-6 w-6" />
+        </Link>
+        <h1 className="text-center font-heading text-lg font-bold">Kategorien ändern</h1>
+        <span />
+      </header>
 
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
         {listError && (
           <Alert variant="destructive">
             <AlertDescription>{listError}</AlertDescription>
@@ -330,16 +329,9 @@ export default function KategorienPage() {
         )}
 
         {!listLoading && !listError && kategorien.length === 0 && (
-          <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed p-10 text-center">
-            <p className="text-sm text-muted-foreground">Noch keine Kategorien vorhanden.</p>
-            <Button
-              onClick={openCreateDialog}
-              variant="outline"
-              className="font-semibold uppercase tracking-wide"
-            >
-              Neue Kategorie anlegen
-            </Button>
-          </div>
+          <p className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+            Noch keine Kategorien vorhanden. Über den Button unten kannst du eine neue Kategorie anlegen.
+          </p>
         )}
 
         {!listLoading && kategorien.length > 0 && (
@@ -347,9 +339,13 @@ export default function KategorienPage() {
             {kategorien.map((kategorie) => (
               <li
                 key={kategorie.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+                className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm"
               >
-                <div className="flex min-w-0 flex-1 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => openEditDialog(kategorie)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
                   {kategorie.picture_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -361,29 +357,29 @@ export default function KategorienPage() {
                     <div className="h-10 w-10 shrink-0 rounded-md border bg-muted" />
                   )}
                   <span className="min-w-0 truncate text-sm font-medium text-foreground">{kategorie.name}</span>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEditDialog(kategorie)}>
-                    Bearbeiten
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => void openDeleteDialog(kategorie)}
-                  >
-                    Löschen
-                  </Button>
-                </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void openDeleteDialog(kategorie)}
+                  aria-label="Löschen"
+                  className="shrink-0 text-brand-gold hover:opacity-80"
+                >
+                  <Trash2 className="h-6 w-6" />
+                </button>
               </li>
             ))}
           </ul>
         )}
-
-        <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-          <Link href="/">Zurück</Link>
-        </Button>
       </div>
+
+      <button
+        type="button"
+        onClick={openCreateDialog}
+        aria-label="Neue Kategorie"
+        className="fixed bottom-8 left-1/2 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
+      >
+        <Plus className="h-7 w-7" />
+      </button>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -470,6 +466,6 @@ export default function KategorienPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+    </div>
   );
 }
