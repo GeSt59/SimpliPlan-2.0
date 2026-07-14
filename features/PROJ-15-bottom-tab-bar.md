@@ -288,4 +288,14 @@ src/app/kategorien/page.tsx, src/app/rollen/page.tsx, src/app/mitglieder/page.ts
 - **Recommendation:** Deploy möglich. BEOBACHTUNG-1 kann optional in einem künftigen Hardening-Pass adressiert werden (Deduplizierung der Redirect-Trigger in `src/app/page.tsx`).
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-14
+**Production URL:** https://simpliplan.toolies.eu/ (redirect + Tab-Leiste), https://simpliplan.toolies.eu/profil
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei jedem Push auf `main`, `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe PROJ-4).
+
+- Pre-Deployment-Checks: `npm run build` sauber, QA Approved (20/20 AC, BUG-1 gefixt und verifiziert), keine DB-Migration nötig (reines Frontend-Feature, siehe Architecture). `npm run lint` weiterhin am vorbestehenden, projektunabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- Commit `feat(PROJ-15): ...` (Spec, Architecture, Frontend, QA gebündelt) — `.claude/settings.json` sowie die beiden PII-Referenz-Screenshots (`Mitgliederverwaltung.jpg`, `Profil anzeigen.jpg`) bewusst explizit von `git add` ausgenommen (analog zum PROJ-8-Sicherheitsvorfall — bleiben ungetrackt lokal)
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Run [`29353193439`](https://github.com/GeSt59/SimpliPlan-2.0/actions/runs/29353193439) — `completed` / `success`
+- Tag `v1.6.0-PROJ-15` erstellt und gepusht
+- Post-Deployment-Verifikation (read-only, per Playwright gegen die echte Domain): `/`, `/activities`, `/activities/archiv`, `/profil` liefern alle HTTP 200; unauthentifizierter Zugriff auf `/activities`, `/activities/archiv` und `/profil` redirected korrekt zu "/"; keine Browser-Konsolenfehler
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-15, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3–8
