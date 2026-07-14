@@ -48,7 +48,7 @@ export default function ActivitiesArchivPage() {
 
       if (!active) return;
 
-      const vId = userRow?.admin ? userRow.verein?.[0] : undefined;
+      const vId = userRow?.verein?.[0];
 
       if (!vId) {
         window.location.href = "/";
@@ -120,7 +120,7 @@ export default function ActivitiesArchivPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-16">
+    <main className="min-h-screen bg-background pb-32">
       <div className="bg-brand-blue px-4 py-6 text-center">
         <h1 className="font-heading text-2xl font-bold text-white">Activities-Archiv</h1>
       </div>

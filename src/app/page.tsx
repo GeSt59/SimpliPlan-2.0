@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { AuthShell } from "@/components/auth-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -10,43 +9,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// SU-Accounts sind keinem Verein zugeordnet - /activities kann für sie nicht laden,
+// daher landen sie stattdessen auf /mitglieder (ihr einziger heutiger Einstiegspunkt).
+async function resolveLandingPath(authUserId: string) {
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("verein")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+
+  return userRow?.verein?.[0] ? "/activities" : "/mitglieder";
+}
+
 export default function Home() {
-  const [session, setSession] = useState<Session | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isSu, setIsSu] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) {
+        window.location.href = await resolveLandingPath(data.session.user.id);
+        return;
+      }
       setCheckingSession(false);
-      if (data.session) void loadAdminFlag(data.session.user.id);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
       if (newSession) {
-        void loadAdminFlag(newSession.user.id);
-      } else {
-        setIsAdmin(false);
-        setIsSu(false);
+        void resolveLandingPath(newSession.user.id).then((path) => {
+          window.location.href = path;
+        });
       }
     });
 
     return () => listener.subscription.unsubscribe();
   }, []);
-
-  async function loadAdminFlag(authUserId: string) {
-    const { data } = await supabase
-      .from("users")
-      .select("admin, su")
-      .eq("auth_user_id", authUserId)
-      .maybeSingle();
-    setIsAdmin(!!data?.admin);
-    setIsSu(!!data?.su);
-  }
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -88,57 +86,11 @@ export default function Home() {
       }
     }
 
-    window.location.href = "/";
-  }
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    window.location.href = "/";
+    window.location.href = vereinId ? "/activities" : "/mitglieder";
   }
 
   if (checkingSession) {
     return <main className="min-h-screen bg-background" />;
-  }
-
-  if (session) {
-    return (
-      <AuthShell title="Willkommen">
-        <div className="flex w-full flex-col items-center gap-5">
-          <p className="text-sm text-foreground">Eingeloggt als {session.user.email}</p>
-          {isAdmin && (
-            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-              <Link href="/voreinstellung">Vereinseinstellungen</Link>
-            </Button>
-          )}
-          {isAdmin && (
-            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-              <Link href="/kategorien">Kategorien</Link>
-            </Button>
-          )}
-          {isAdmin && (
-            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-              <Link href="/rollen">Rollen</Link>
-            </Button>
-          )}
-          {(isAdmin || isSu) && (
-            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-              <Link href="/mitglieder">Mitglieder</Link>
-            </Button>
-          )}
-          {isAdmin && (
-            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-              <Link href="/activities">Activities</Link>
-            </Button>
-          )}
-          <Button
-            onClick={handleLogout}
-            className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
-          >
-            Logout
-          </Button>
-        </div>
-      </AuthShell>
-    );
   }
 
   return (

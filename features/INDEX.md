@@ -29,7 +29,8 @@
 | PROJ-12 | Profil-Verwaltung | P0 | Roadmap | PROJ-3 | - | 2026-07-08 |
 | PROJ-13 | Mitglieder-Ansicht/Suche | P0 | Roadmap | PROJ-7 | - | 2026-07-08 |
 | PROJ-14 | Kalender-Export (ICS, 1-Klick) | P0 | Roadmap | PROJ-10 | - | 2026-07-08 |
+| PROJ-15 | Bottom-Tab-Bar (Activities / Lions / Activity / Kategorien / Profil) | P0 | Approved | PROJ-3, PROJ-4, PROJ-5, PROJ-6, PROJ-7, PROJ-8 | [PROJ-15](PROJ-15-bottom-tab-bar.md) | 2026-07-13 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-15
+## Next Available ID: PROJ-16

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Rubik, Raleway } from "next/font/google";
+import { BottomTabBar } from "@/components/bottom-tab-bar";
 import "./globals.css";
 
 const rubik = Rubik({
@@ -28,6 +29,7 @@ export default function RootLayout({
     <html lang="de" className={`${rubik.variable} ${raleway.variable}`}>
       <body className="antialiased font-body">
         {children}
+        <BottomTabBar />
       </body>
     </html>
   );

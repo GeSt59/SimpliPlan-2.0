@@ -21,6 +21,7 @@ export default function ActivityDetailPage() {
 
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [vereinId, setVereinId] = useState<number | null>(null);
 
   const [categories, setCategories] = useState<ActivityCategory[]>([]);
@@ -51,7 +52,7 @@ export default function ActivityDetailPage() {
 
       if (!active) return;
 
-      const vId = userRow?.admin ? userRow.verein?.[0] : undefined;
+      const vId = userRow?.verein?.[0];
 
       if (!vId) {
         window.location.href = "/";
@@ -59,6 +60,7 @@ export default function ActivityDetailPage() {
       }
 
       setVereinId(vId);
+      setIsAdmin(!!userRow?.admin);
       setAllowed(true);
       setChecking(false);
     }
@@ -133,7 +135,7 @@ export default function ActivityDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-16">
+    <main className="min-h-screen bg-background pb-32">
       <div className="relative bg-brand-blue px-4 py-6 text-center">
         <Link
           href="/activities"
@@ -183,13 +185,15 @@ export default function ActivityDetailPage() {
                 </p>
               </div>
 
-              <Button
-                onClick={() => setDialogOpen(true)}
-                variant="outline"
-                className="mt-2 font-semibold uppercase tracking-wide"
-              >
-                Bearbeiten
-              </Button>
+              {isAdmin && (
+                <Button
+                  onClick={() => setDialogOpen(true)}
+                  variant="outline"
+                  className="mt-2 font-semibold uppercase tracking-wide"
+                >
+                  Bearbeiten
+                </Button>
+              )}
             </div>
 
             <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4">
@@ -197,15 +201,22 @@ export default function ActivityDetailPage() {
               <p className="text-sm text-muted-foreground">
                 Zeitbereiche sind noch nicht verfügbar und folgen mit einem späteren Update.
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                disabled
-                title="Verfügbar, sobald Zeitbereiche implementiert sind"
-                className="w-fit font-semibold uppercase tracking-wide"
-              >
-                Zeitbereich hinzufügen
-              </Button>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled
+                  title="Verfügbar, sobald Zeitbereiche implementiert sind"
+                  className="w-fit font-semibold uppercase tracking-wide"
+                >
+                  Zeitbereich hinzufügen
+                </Button>
+                {isAdmin && (
+                  <Link href="/rollen" className="text-sm font-medium text-brand-blue underline">
+                    Rollen verwalten
+                  </Link>
+                )}
+              </div>
             </div>
           </>
         )}

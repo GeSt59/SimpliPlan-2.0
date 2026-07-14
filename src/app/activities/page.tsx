@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { List, Pencil, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { resolveCategoryPicture, formatActivityDateTime, startOfTodayIso } from "@/lib/activities";
@@ -26,10 +26,20 @@ import {
 const ACTIVITY_COLUMNS = "id, name, category, du_z, du_zbis, ort, beschreibung, einteilungens";
 
 export default function ActivitiesPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-background" />}>
+      <ActivitiesPageContent />
+    </Suspense>
+  );
+}
+
+function ActivitiesPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [vereinId, setVereinId] = useState<number | null>(null);
   const [ownUserId, setOwnUserId] = useState<number | null>(null);
 
@@ -67,7 +77,7 @@ export default function ActivitiesPage() {
 
       if (!active) return;
 
-      const vId = userRow?.admin ? userRow.verein?.[0] : undefined;
+      const vId = userRow?.verein?.[0];
 
       if (!vId) {
         window.location.href = "/";
@@ -76,6 +86,7 @@ export default function ActivitiesPage() {
 
       setVereinId(vId);
       setOwnUserId(userRow?.id ?? null);
+      setIsAdmin(!!userRow?.admin);
       setAllowed(true);
       setChecking(false);
     }
@@ -85,6 +96,13 @@ export default function ActivitiesPage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (allowed && isAdmin && searchParams.get("new") === "1") {
+      openCreateDialog();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowed, isAdmin, searchParams]);
 
   useEffect(() => {
     if (!vereinId) return;
@@ -184,7 +202,7 @@ export default function ActivitiesPage() {
   const hasEinteilungen = (deleteTarget?.einteilungens?.length ?? 0) > 0;
 
   return (
-    <main className="min-h-screen bg-background pb-28">
+    <main className="min-h-screen bg-background pb-40">
       <div className="bg-brand-blue px-4 py-6 text-center">
         <h1 className="font-heading text-2xl font-bold text-white">Activities</h1>
       </div>
@@ -205,9 +223,11 @@ export default function ActivitiesPage() {
         {!listLoading && !listError && activities.length === 0 && (
           <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed p-10 text-center">
             <p className="text-sm text-muted-foreground">Noch keine kommenden Activities vorhanden.</p>
-            <Button onClick={openCreateDialog} variant="outline" className="font-semibold uppercase tracking-wide">
-              Neue Activity anlegen
-            </Button>
+            {isAdmin && (
+              <Button onClick={openCreateDialog} variant="outline" className="font-semibold uppercase tracking-wide">
+                Neue Activity anlegen
+              </Button>
+            )}
           </div>
         )}
 
@@ -237,22 +257,26 @@ export default function ActivitiesPage() {
                   </div>
 
                   <div className="flex shrink-0 flex-col items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      aria-label="Activity löschen"
-                      onClick={() => openDeleteDialog(a)}
-                      className="text-brand-gold hover:opacity-80"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Activity bearbeiten"
-                      onClick={() => openEditDialog(a)}
-                      className="text-brand-blue hover:opacity-80"
-                    >
-                      <Pencil className="h-5 w-5" />
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        aria-label="Activity löschen"
+                        onClick={() => openDeleteDialog(a)}
+                        className="text-brand-gold hover:opacity-80"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        aria-label="Activity bearbeiten"
+                        onClick={() => openEditDialog(a)}
+                        className="text-brand-blue hover:opacity-80"
+                      >
+                        <Pencil className="h-5 w-5" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       aria-label="Zu Zeitbereichen"
@@ -271,20 +295,18 @@ export default function ActivitiesPage() {
         <Button asChild variant="outline" className="font-semibold uppercase tracking-wide">
           <Link href="/activities/archiv">Archiv anzeigen</Link>
         </Button>
-
-        <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-          <Link href="/">Zurück</Link>
-        </Button>
       </div>
 
-      <button
-        type="button"
-        onClick={openCreateDialog}
-        aria-label="Neue Activity anlegen"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={openCreateDialog}
+          aria-label="Neue Activity anlegen"
+          className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
 
       {vereinId && (
         <ActivityFormDialog
