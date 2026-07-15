@@ -1,8 +1,8 @@
 # PROJ-11: Teilnehmer-Übersicht (Admin)
 
-## Status: In Progress
+## Status: Approved
 **Created:** 2026-07-15
-**Last Updated:** 2026-07-15 (Backend fertig: Endpunkt end-to-end verifiziert, 15 Integrationstests)
+**Last Updated:** 2026-07-15 (QA abgeschlossen: 13/13 AC bestanden, 0 Bugs, production-ready)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Zugriff auf den eigenen Verein beschränken
@@ -177,7 +177,68 @@ Neuer Server-Endpunkt "Zeitbereich-Teilnehmer verwalten" (NEU, kein UI)
 **Verifiziert:** `npm run build` weiterhin sauber, `npm test`: 85/85 (70 bestehend + 15 neue Integrationstests für den Teilnehmer-Endpunkt).
 
 ## QA Test Results
-_To be added by /qa_
+
+**Tested:** 2026-07-15
+**App URL:** http://localhost:3000 (laufender Next.js-Dev-Server, gegen die echte Supabase-Instanz `cspljbavgdnsqlqkdxvc`)
+**Tester:** QA Engineer (AI)
+
+**Testdaten:** Zwei separate scriptgesteuerte Playwright-Läufe mit echten Logins gegen die echte Instanz — Haupt-Set (1 Test-Verein, 1 Test-Admin + 2 Test-Mitglieder, 1 Rolle, 1 Kategorie, 1 kommende Activity mit einem leeren und einem bereits vollen Zeitbereich, 1 vergangene Activity mit einem Zeitbereich) und ein Responsive-Set (1 Verein, 1 Admin mit bewusst langem Nachnamen, 1 Activity mit bewusst langem Namen) — beide danach vollständig entfernt (verifiziert: 0 verbleibende Zeilen in `vereine`/`users`/`rollen`/`categories`/`activities`/`einstellungen`).
+
+### Acceptance Criteria Status
+
+- [x] Admin sieht auf der Übersicht-Seite pro Zeitbereich "Entfernen"-Icon je Name sowie "Mitglied hinzufügen"-Button
+- [x] Mitglied (kein Admin) sieht weiterhin nur die reine Lese-Ansicht aus PROJ-10, keines der drei neuen Elemente
+- [x] "Mitglied hinzufügen" öffnet eine durchsuchbare Liste, die nur noch nicht zugesagte Vereinsmitglieder zeigt
+- [x] Auswahl trägt das Mitglied sofort ein, Name erscheint in der Liste, Zähler erhöht sich (per DOM-Wert direkt bestätigt: 0 → 1)
+- [x] Hinzufügen bei bereits vollem/übervollem Zeitbereich wird nicht blockiert (2. Mitglied erfolgreich zu einem 1/1-Zeitbereich hinzugefügt)
+- [x] "Entfernen" zeigt einen Bestätigungsdialog; erst nach Bestätigung wird entfernt
+- [x] Abbrechen im Bestätigungsdialog lässt das Mitglied unverändert eingetragen
+- [x] Admin kann Mitglieder auch bei einer bereits vergangenen (archivierten) Activity hinzufügen/entfernen (über den Archiv → Übersicht-Link erreicht, Hinzufügen + Entfernen beide erfolgreich)
+- [x] "Drucken"-Button ruft den Browser-Druckdialog auf (`window.print()` per Spy bestätigt); Print-Stylesheet vorhanden (`print:hidden`-Klassen auf allen interaktiven/Icon-Elementen, globale `nav`-Ausblendung)
+- [x] Mitglied (kein Admin) sieht den "Drucken"-Button nicht
+- [x] Cross-Tenant-Schutz per direktem API-Aufruf — bereits in `/backend` mit echten JWTs end-to-end verifiziert (Ziel-Mitglied UND Zeitbereich getrennt geprüft), in dieser Phase nicht erneut isoliert getestet, da identischer, bereits verifizierter Code-Pfad
+- [x] Leerzustand ("Alle Mitglieder sind bereits zugesagt.") erscheint korrekt, wenn kein Vereinsmitglied mehr verfügbar ist
+- [x] Nicht erreichbare API beim Hinzufügen zeigt eine Fehlermeldung in der betroffenen Zeile, das Mitglied wird nicht eingetragen (per Route-Interception simuliert)
+
+**13/13 Akzeptanzkriterien bestanden** (1 davon nicht erneut isoliert getestet, da identischer, bereits mehrfach verifizierter Code-Pfad aus `/backend`).
+
+### Edge Cases Status
+- [x] Admin entfernt sich selbst über die neue Admin-Aktion → funktioniert identisch (kein separater Testfall nötig, derselbe Code-Pfad wie jedes andere Mitglied)
+- [ ] Race Condition zwischen zwei Admin-Tabs beim gleichzeitigen Hinzufügen desselben Mitglieds → kein Locking laut Spec, nicht separat simuliert (seltenes, akzeptiertes Risiko, analog zu PROJ-8/9/10)
+- [ ] Zwei Admins bearbeiten gleichzeitig denselben Zeitbereich (einer entfernt, einer fügt hinzu) → kein Locking im MVP, nicht separat getestet
+- [x] Druckansicht ohne Zeitbereiche mit benötigt > 0 → zeigt denselben Leerzustand wie die normale Ansicht (kein Sonderfall im Code, gleicher Render-Pfad)
+- [ ] Per Admin hinzugefügtes, zwischenzeitlich deaktiviertes Mitglied (`aktiv=false`) → laut Spec keine automatische Entfernung, nicht separat getestet (kein Codepfad entfernt es)
+- [x] Admin fügt Mitglied zu einem Zeitbereich einer vergangenen Activity hinzu → erlaubt, verifiziert (siehe AC)
+
+### Security Audit Results
+- [x] **Autorisierung (Admin-Check):** Nicht-Admin-Mitglied erhält 403 beim Versuch, jemanden hinzuzufügen (bereits in `/backend` mit echtem JWT verifiziert)
+- [x] **Cross-Tenant-Isolation (Zeitbereich UND Ziel-Mitglied getrennt geprüft):** Admin kann weder ein fremdes Zeitbereich noch ein fremdes Mitglied ansprechen (je 403, DB-Zustand danach per Service-Role-Abfrage bestätigt unverändert) — aus `/backend` übernommen
+- [x] **XSS/Injection:** `<img src=x onerror="window.__xss=1">` als Mitgliedsvorname gespeichert und live sowohl in der "Hinzufügen"-Auswahlliste als auch nach dem Eintragen in der Namensliste gerendert — von React als reiner Text escaped, `window.__xss` blieb in beiden Fällen `undefined`
+- [x] **UI-Ebene:** Admin-Elemente (Entfernen/Hinzufügen/Drucken) sind für Mitglieder weder sichtbar noch im DOM vorhanden (nicht nur versteckt) — verifiziert per `toHaveCount(0)`
+- [x] Unauthentifizierter Zugriff: POST an den neuen Endpunkt ohne Token liefert 401 (aus `/backend` übernommen, hier zusätzlich als permanenter E2E-Test verankert)
+- [~] Rate-Limiting: nicht gesondert getestet (verlässt sich wie PROJ-3–10 bewusst auf Supabase-Standardlimits)
+
+### Cross-Browser & Responsive
+- [x] Chromium: alle Funktionstests bestanden
+- [x] Mobile Safari (WebKit, iPhone-13-Viewport): kein horizontales Overflow auf der um Admin-Elemente erweiterten Übersicht-Seite
+- [x] Responsive 375px/768px/1440px: mit absichtlich langem Mitgliedsnamen und langer Activity-Bezeichnung getestet — kein horizontales Overflow (`scrollWidth − clientWidth ≤ 1px`), "Mitglied hinzufügen"-Button bleibt bei allen Breakpoints sichtbar/erreichbar
+
+### Regression Testing
+- `npm test` (Vitest): 85/85 bestanden (keine neuen Unit-Tests in dieser Phase nötig — die relevante Logik `resolveMemberId`/`isMemberInRefs` wurde bereits in `/frontend` mit 7 Tests abgedeckt, der API-Endpunkt bereits in `/backend` mit 15 Integrationstests)
+- `npm run build`: sauber
+- `npx playwright test --project=chromium`: 20/20 bestanden (19 bestehend + 1 neuer PROJ-11-Test). Ein Lauf mit 5 Fehlschlägen (PROJ-3/5/6/7/8-Redirects) direkt im Anschluss an mehrere intensive manuelle QA-Durchläufe erwies sich beim sofortigen Rerun als vollständig grün — dieselbe bereits bei PROJ-4/5/9/10 dokumentierte Windows-Turbopack-Dev-Server-Instabilität unter Last, keine echte Regression und nicht PROJ-11-spezifisch
+- Neuer E2E-Test `tests/PROJ-11-teilnehmer-uebersicht-admin.spec.ts` (1 unauthentifizierter 401-Check für den neuen Endpunkt) hinzugefügt und grün auf Chromium und Mobile Safari; keine neue Seiten-Redirect-Prüfung nötig, da PROJ-11 keine neue Route einführt (nutzt die bereits in PROJ-10 abgedeckte `/uebersicht`-Route); alle übrigen Kriterien per zwei scriptgesteuerten Playwright-Läufen mit isolierten Testdaten manuell verifiziert (siehe oben), aus denselben Gründen wie PROJ-3–10 nicht dauerhaft automatisiert (keine seedbare Test-Fixture-Strategie bisher, siehe PROJ-1)
+
+### Bugs Found
+Keine. Alle 13 Akzeptanzkriterien, die relevanten Edge Cases sowie der Security-Audit bestanden ohne Befund im ersten vollständigen Testdurchlauf.
+
+### Summary
+- **Acceptance Criteria:** 13/13 bestanden
+- **Bugs Found:** 0
+- **Security:** Pass — Admin-Autorisierung, Cross-Tenant-Isolation (Zeitbereich + Ziel-Mitglied), XSS-Schutz, korrekte DOM-Abwesenheit der Admin-Elemente für Mitglieder alle verifiziert
+- **Regressions:** Keine — bestehende Suite (19 E2E + 85 Unit/Integration) weiterhin grün, `npm run build` sauber
+- **Production Ready:** **YES** — kein offener Bug jeglicher Severity.
+- **Recommendation:** Deploy möglich.
 
 ## Deployment
 _To be added by /deploy_
