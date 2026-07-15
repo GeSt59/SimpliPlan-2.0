@@ -232,7 +232,16 @@ export default function ActivitiesPage() {
             {filteredActivities.map((a) => {
               const pictureUrl = resolveCategoryPicture(categories, a.category);
               return (
-                <li key={a.id} className="flex items-stretch gap-3 rounded-lg border bg-card p-3 shadow-sm">
+                <li
+                  key={a.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => router.push(`/activities/${a.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") router.push(`/activities/${a.id}`);
+                  }}
+                  className="flex cursor-pointer items-stretch gap-3 rounded-lg border bg-card p-3 shadow-sm"
+                >
                   <div className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-muted">
                     {pictureUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -253,7 +262,10 @@ export default function ActivitiesPage() {
                       <button
                         type="button"
                         aria-label="Activity löschen"
-                        onClick={() => void openDeleteDialog(a)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void openDeleteDialog(a);
+                        }}
                         className="text-brand-gold hover:opacity-80"
                       >
                         <Trash2 className="h-5 w-5" />
@@ -263,7 +275,10 @@ export default function ActivitiesPage() {
                       <button
                         type="button"
                         aria-label="Activity bearbeiten"
-                        onClick={() => router.push(`/activities/${a.id}/bearbeiten`)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/activities/${a.id}/bearbeiten`);
+                        }}
                         className="text-brand-blue hover:opacity-80"
                       >
                         <Pencil className="h-5 w-5" />
@@ -271,8 +286,11 @@ export default function ActivitiesPage() {
                     )}
                     <button
                       type="button"
-                      aria-label="Zu Zeitbereichen"
-                      onClick={() => router.push(`/activities/${a.id}`)}
+                      aria-label="Zur Übersicht"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/activities/${a.id}/uebersicht`);
+                      }}
                       className="text-brand-blue hover:opacity-80"
                     >
                       <List className="h-5 w-5" />

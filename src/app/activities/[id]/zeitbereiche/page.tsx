@@ -123,13 +123,19 @@ export default function ZeitbereichePage() {
   async function loadRoles(vId: number): Promise<ZeitbereichRole[]> {
     const { data } = await supabase
       .from("rollen")
-      .select("id, adalo_id, name")
+      .select("id, adalo_id, name, gleich_angemeldet")
       .contains("vereine", [vId])
       .order("name", { ascending: true });
 
     const loadedRoles = data ?? [];
     setRoles(loadedRoles);
     return loadedRoles;
+  }
+
+  /** Alle aktuell aktiven Mitglieder-IDs des Vereins, für die einmalige Auto-Anmeldung bei "automatisch angemeldet"-Rollen (PROJ-10). */
+  async function fetchActiveMemberIds(vId: number): Promise<number[]> {
+    const { data } = await supabase.from("users").select("id").contains("verein", [vId]).eq("aktiv", true);
+    return (data ?? []).map((u) => u.id);
   }
 
   async function loadActivityAndZeitbereiche(rolesOverride?: ZeitbereichRole[]) {
@@ -235,13 +241,31 @@ export default function ZeitbereichePage() {
 
     updateRow(row.key, { saving: true, error: null });
 
-    const payload = {
+    const payload: {
+      zeitbereich: string;
+      ben: number;
+      rollen: number[] | null;
+      von: string;
+      bis: string;
+      eingeteilte_users?: number[];
+    } = {
       zeitbereich: trimmedLabel,
       ben: row.benoetigt,
       rollen: row.roleId ? [Number(row.roleId)] : null,
       von: row.von,
       bis: row.bis,
     };
+
+    // Einmalige Auto-Anmeldung (PROJ-10): eine Rolle mit "automatisch angemeldet" trägt beim
+    // ersten Speichern mit noch leerer Zusagenliste alle aktuell aktiven Mitglieder ein. Bereits
+    // befüllte Zeitbereiche werden nicht erneut überschrieben (abgemeldete Mitglieder bleiben ab).
+    const selectedRole = row.roleId ? roles.find((r) => String(r.id) === row.roleId) : undefined;
+    if (selectedRole?.gleich_angemeldet && row.eingeteilteCount === 0 && vereinId) {
+      const memberIds = await fetchActiveMemberIds(vereinId);
+      if (memberIds.length > 0) {
+        payload.eingeteilte_users = memberIds;
+      }
+    }
 
     try {
       if (row.id == null) {

@@ -9,6 +9,41 @@ export type ZeitbereichRole = {
   id: number;
   adalo_id: number | null;
   name: string | null;
+  gleich_angemeldet?: boolean;
+};
+
+export type Member = {
+  id: number;
+  adalo_id: number | null;
+  vorname: string | null;
+  nachname: string | null;
+};
+
+function findMember(members: Member[], ref: string | number): Member | undefined {
+  return members.find(
+    (m) => String(m.id) === String(ref) || (m.adalo_id != null && String(m.adalo_id) === String(ref))
+  );
+}
+
+/** Formatiert einen eingeteilte_users-Eintrag (id oder adalo_id) als "Nachname Vorname", analog zur Mitgliederverwaltung (PROJ-7). */
+export function resolveMemberName(members: Member[], ref: string | number): string {
+  const member = findMember(members, ref);
+  if (!member) return "Unbekannt";
+  return `${member.nachname ?? ""} ${member.vorname ?? ""}`.trim() || "Unbekannt";
+}
+
+export type SignupStatus = "zu_wenig" | "genau_richtig" | "zu_viel";
+
+export function computeSignupStatus(kommen: number, benoetigt: number): SignupStatus {
+  if (kommen > benoetigt) return "zu_viel";
+  if (kommen === benoetigt) return "genau_richtig";
+  return "zu_wenig";
+}
+
+export const SIGNUP_STATUS_ICON: Record<SignupStatus, { src: string; alt: string }> = {
+  zu_wenig: { src: "/zu%20wenig.jpg", alt: "Zu wenig zugesagt" },
+  genau_richtig: { src: "/genau%20richtig.jpg", alt: "Genau richtig besetzt" },
+  zu_viel: { src: "/zu%20viel.jpg", alt: "Zu viel zugesagt" },
 };
 
 function findCategory(

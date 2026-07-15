@@ -1,8 +1,8 @@
 # PROJ-10: Mitglied-Anmeldung zu Zeitbereichen
 
-## Status: Architected
+## Status: In Progress
 **Created:** 2026-07-15
-**Last Updated:** 2026-07-15 (Tech Design abgeschlossen)
+**Last Updated:** 2026-07-15 (Frontend implementiert, Backend-Blocker für Namensauflösung erwartet)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Zugriff auf den eigenen Verein beschränken
@@ -189,6 +189,31 @@ Neuer Server-Endpunkt "Zeitbereich-Anmeldung" (NEU, kein UI)
 
 - Keine neuen Pakete: `@supabase/supabase-js`, `zod`, `shadcn/ui` (`checkbox`, bereits installiert) — alles bereits im Projekt vorhanden
 - Der neue Server-Endpunkt nutzt dieselbe bereits vorhandene Infrastruktur wie `/api/mitglieder/[id]` (Zugriffsprüfung anhand der Anfrage + privilegierter Datenbankzugriff für die eigentliche Änderung)
+
+## Frontend Implementation Notes
+
+**Korrektur gegenüber Tech Design:** `/activities`, `/activities/archiv` und `/activities/[id]` hatten bereits vor PROJ-10 keinen Admin-Gate in ihrem Zugriffscheck (nur Session + Vereins-Zuordnung wurden geprüft; `isAdmin` wurde nur für bedingtes UI-Rendering verwendet). Der im Tech Design angenommene Schritt "Zugriffsprüfung lockern" war für diese drei Seiten daher bereits erledigt — abweichend von PROJ-8s eigener QA-Dokumentation (die einen Admin-Redirect für Mitglieder als bestanden vermerkt hatte). Es waren keine Code-Änderungen an den Zugriffsprüfungen selbst nötig, nur an den UI-Elementen (Icon-Ziel, Klick-Verhalten, neue Anmeldung-Sektion).
+
+**Gebaut:**
+- `src/lib/activities.ts` — `ZeitbereichRole.gleich_angemeldet`, `Member`-Typ, `resolveMemberName` (id/adalo_id-Fallback, analog zu `resolveRoleName`), `computeSignupStatus`, `SIGNUP_STATUS_ICON` (verlinkt auf die drei vorhandenen Bilddateien in `public/`, URL-encoded wegen Leerzeichen im Dateinamen)
+- `src/app/api/einstellungen/[id]/anmeldung/route.ts` (NEU) — POST-Endpunkt für Selbst-An-/Abmeldung, analog zum `/api/mitglieder/[id]`-Muster: `scopedClientFromRequest` prüft Identität + liest den Zeitbereich RLS-scoped (nicht sichtbar = 403), berechnet serverseitig ausschließlich die eigene id/adalo_id-Differenz, schreibt per `supabaseAdmin` (Service-Role)
+- `src/app/activities/page.tsx` (GEÄNDERT) — Listen-Icon zeigt jetzt für alle Nutzer zu `/activities/[id]/uebersicht` (vorher: zur Detailseite); Klick auf die Zeile (außerhalb der Icon-Spalte) navigiert zu `/activities/[id]`, Icon-Buttons stoppen die Propagation
+- `src/app/activities/[id]/page.tsx` (GEÄNDERT) — erweitert um die Anmeldung-Sektion (Checkbox „Ich bin dabei", Namensliste, „Übersicht"-Button), sichtbar für alle Nutzer, aber nur wenn die Activity noch nicht vergangen ist (`du_zbis` vs. `startOfTodayIso()`, gleiche Grenze wie Archiv); Stub-Zeitbereiche (`ben=0` oder keine Rolle) werden serverseitig (`gt("ben", 0)`) bzw. clientseitig herausgefiltert; Checkbox bleibt unverändert stehen, bis die Server-Antwort eintrifft (kein optimistisches UI, erfüllt AC zur Fehlermeldung bei nicht erreichbarer API)
+- `src/app/activities/[id]/uebersicht/page.tsx` (NEU) — Tabelle je Zeitbereich (Label, Rolle als Sekundärzeile, kommen/insg./offen, Status-Icon), gleicher Zugriffsschutz wie die Anmeldung-Seite
+- `src/app/activities/[id]/zeitbereiche/page.tsx` (GEÄNDERT) — `loadRoles` lädt zusätzlich `gleich_angemeldet`; neue Hilfsfunktion `fetchActiveMemberIds`; `handleSaveRow` befüllt `eingeteilte_users` einmalig mit allen aktiven Mitgliedern, wenn die gewählte Rolle `gleich_angemeldet=true` hat und die Zeile aktuell 0 Zusagen hat (deckt sowohl Neuanlage als auch Bearbeiten ab, da beide Fälle bei 0 starten)
+
+**Nicht optimistisch, sondern serverseitig berechnet:** Der neue Endpunkt vertraut nie einer vom Client mitgesendeten Mitglieds-ID — er ermittelt den Aufrufer ausschließlich aus dem JWT und ändert nur dessen eigenen Eintrag. Das setzt die in `/architecture` getroffene Entscheidung direkt um.
+
+**Neuer, beim Architektur-Entwurf nicht erkannter Blocker für `/backend`:** Die Anmeldung-Seite liest für die Namensauflösung direkt `supabase.from("users").select(...).contains("verein", [vId])` als beliebiger eingeloggter Nutzer (nicht nur Admin). Die bestehende `users`-SELECT-Policy (`users_select_own_verein_admin`, aus PROJ-7) ist jedoch admin-beschränkt — ein normales Mitglied sieht mit der aktuellen RLS-Lage nur die eigene Zeile, nicht die anderer Mitglieder. Dadurch werden die Namenslisten auf der Anmeldung-Seite für Mitglieder aktuell leer/„Unbekannt" bleiben, bis `/backend` eine passende SELECT-Policy ergänzt (z.B. beschränkt auf `id, adalo_id, vorname, nachname`, analog zum bereits etablierten Muster „lesen ja, aber nur eingeschränkte Felder"). Betrifft nur die Namensauflösung, nicht die Zähler (kommen/benötigt), die direkt aus `einstellungen.eingeteilte_users.length` kommen und bereits für alle Mitglieder lesbar sind (siehe unten).
+
+**Bereits ausreichend (keine neue Policy nötig):** `activities`- und `einstellungen`-SELECT sind laut PROJ-8/PROJ-6-Backend-Notizen bereits für jeden Vereins-Nutzer freigegeben (nicht nur Admins) — verifiziert per SQL-Introspektion in früheren Phasen. Die Übersicht-Seite (nutzt keine Namen) und die Zähler auf der Anmeldung-Seite funktionieren daher bereits ohne weitere Backend-Änderung.
+
+**Nicht getestet (erwartete Blocker für `/backend`, analog zu PROJ-5–9):**
+- Selbst-An-/Abmeldung über den neuen Endpunkt konnte noch nicht end-to-end gegen echte Daten verifiziert werden (RLS auf `einstellungen` ist für den Service-Role-Schreibzugriff im Endpunkt zwar irrelevant, aber der Endpunkt selbst wurde nur gegen den TypeScript-Compiler geprüft, nicht live aufgerufen)
+- Die Namensauflösung auf der Anmeldung-Seite (siehe Blocker oben)
+- Die Auto-Anmeldung bei "automatisch angemeldet"-Rollen (PROJ-9-Zeitbereiche-Seite) wurde nicht live mit echten Mitgliedsdaten getestet
+
+**Verifiziert:** `npm run build` läuft sauber durch (neue Routen `/activities/[id]/uebersicht` und `/api/einstellungen/[id]/anmeldung` kompilieren fehlerfrei). `npm test` weiterhin 55/55, keine Regression. `npm run lint` weiterhin am vorbestehenden, projektunabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
 
 ## QA Test Results
 _To be added by /qa_

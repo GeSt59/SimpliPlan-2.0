@@ -5,14 +5,38 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { resolveCategoryName, resolveCategoryPicture, formatActivityRange } from "@/lib/activities";
-import type { ActivityCategory } from "@/lib/activities";
+import {
+  resolveCategoryName,
+  resolveCategoryPicture,
+  formatActivityRange,
+  startOfTodayIso,
+  resolveRoleName,
+  resolveMemberName,
+} from "@/lib/activities";
+import type { ActivityCategory, ZeitbereichRole, Member } from "@/lib/activities";
 import type { ActivityRecord } from "@/lib/activity-form-schema";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
-const ACTIVITY_COLUMNS = "id, name, category, du_z, du_zbis, ort, beschreibung, einteilungens";
+const ACTIVITY_COLUMNS = "id, adalo_id, name, category, du_z, du_zbis, ort, beschreibung, einteilungens";
+
+type ZeitbereichSignupRow = {
+  id: number;
+  label: string;
+  benoetigt: number;
+  kommen: number;
+  roleRef: (string | number)[] | null;
+  names: string[];
+  checked: boolean;
+  saving: boolean;
+  error: string | null;
+};
+
+function isPastDate(du_zbis: string | null): boolean {
+  return !!du_zbis && du_zbis < startOfTodayIso();
+}
 
 export default function ActivityDetailPage() {
   const params = useParams<{ id: string }>();
@@ -22,12 +46,20 @@ export default function ActivityDetailPage() {
   const [allowed, setAllowed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [vereinId, setVereinId] = useState<number | null>(null);
+  const [myUserId, setMyUserId] = useState<number | null>(null);
+  const [myAdaloId, setMyAdaloId] = useState<number | null>(null);
 
   const [categories, setCategories] = useState<ActivityCategory[]>([]);
   const [activity, setActivity] = useState<ActivityRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+
+  const [roles, setRoles] = useState<ZeitbereichRole[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [signupRows, setSignupRows] = useState<ZeitbereichSignupRow[]>([]);
+  const [signupLoading, setSignupLoading] = useState(true);
+  const [signupError, setSignupError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -43,7 +75,7 @@ export default function ActivityDetailPage() {
 
       const { data: userRow } = await supabase
         .from("users")
-        .select("admin, verein")
+        .select("id, adalo_id, admin, verein")
         .eq("auth_user_id", session.user.id)
         .maybeSingle();
 
@@ -57,6 +89,8 @@ export default function ActivityDetailPage() {
       }
 
       setVereinId(vId);
+      setMyUserId(userRow?.id ?? null);
+      setMyAdaloId(userRow?.adalo_id ?? null);
       setIsAdmin(!!userRow?.admin);
       setAllowed(true);
       setChecking(false);
@@ -74,6 +108,16 @@ export default function ActivityDetailPage() {
     void loadActivity();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vereinId, activityId]);
+
+  useEffect(() => {
+    if (!vereinId || !activity || myUserId == null) return;
+    if (isPastDate(activity.du_zbis)) {
+      setSignupLoading(false);
+      return;
+    }
+    void loadSignupData(vereinId, myUserId, myAdaloId, activity.adalo_id ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vereinId, activity, myUserId]);
 
   async function loadCategories(vId: number) {
     const { data } = await supabase
@@ -112,6 +156,98 @@ export default function ActivityDetailPage() {
     setLoading(false);
   }
 
+  async function loadSignupData(vId: number, myId: number, myAdaloIdVal: number | null, actAdaloId: number | null) {
+    setSignupLoading(true);
+    setSignupError(null);
+
+    const [{ data: roleData }, { data: memberData }] = await Promise.all([
+      supabase.from("rollen").select("id, adalo_id, name").contains("vereine", [vId]),
+      supabase.from("users").select("id, adalo_id, vorname, nachname").contains("verein", [vId]),
+    ]);
+
+    const loadedMembers = memberData ?? [];
+    setRoles(roleData ?? []);
+    setMembers(loadedMembers);
+
+    const activityFilters = [`activity.cs.{${activityId}}`];
+    if (actAdaloId != null) {
+      activityFilters.push(`activity.cs.{${actAdaloId}}`);
+    }
+
+    const { data, error } = await supabase
+      .from("einstellungen")
+      .select("id, zeitbereich, ben, rollen, eingeteilte_users")
+      .or(activityFilters.join(","))
+      .gt("ben", 0)
+      .order("id", { ascending: true });
+
+    if (error) {
+      setSignupError("Zeitbereiche konnten nicht geladen werden.");
+      setSignupLoading(false);
+      return;
+    }
+
+    const isMe = (ref: string | number) =>
+      String(ref) === String(myId) || (myAdaloIdVal != null && String(ref) === String(myAdaloIdVal));
+
+    setSignupRows(
+      (data ?? [])
+        .filter((z) => z.rollen && z.rollen.length > 0)
+        .map((z) => {
+          const refs: (string | number)[] = z.eingeteilte_users ?? [];
+          return {
+            id: z.id,
+            label: z.zeitbereich ?? "",
+            benoetigt: z.ben ?? 0,
+            kommen: refs.length,
+            roleRef: z.rollen,
+            names: refs.map((ref) => resolveMemberName(loadedMembers, ref)).sort((a, b) => a.localeCompare(b, "de")),
+            checked: refs.some(isMe),
+            saving: false,
+            error: null,
+          };
+        })
+    );
+    setSignupLoading(false);
+  }
+
+  async function handleToggleSignup(row: ZeitbereichSignupRow) {
+    setSignupRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, saving: true, error: null } : r)));
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    try {
+      const res = await fetch(`/api/einstellungen/${row.id}/anmeldung`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: row.checked ? "abmelden" : "anmelden" }),
+      });
+
+      if (!res.ok) {
+        setSignupRows((prev) =>
+          prev.map((r) =>
+            r.id === row.id ? { ...r, saving: false, error: "Änderung fehlgeschlagen. Bitte versuche es erneut." } : r
+          )
+        );
+        return;
+      }
+
+      if (vereinId && myUserId != null) {
+        await loadSignupData(vereinId, myUserId, myAdaloId, activity?.adalo_id ?? null);
+      }
+    } catch {
+      setSignupRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id ? { ...r, saving: false, error: "Server nicht erreichbar. Bitte versuche es später erneut." } : r
+        )
+      );
+    }
+  }
+
   if (checking || (!notFound && loading)) {
     return <main className="min-h-screen bg-background" />;
   }
@@ -130,6 +266,8 @@ export default function ActivityDetailPage() {
       </main>
     );
   }
+
+  const showSignup = !!activity && !isPastDate(activity.du_zbis);
 
   return (
     <main className="min-h-screen bg-background pb-32">
@@ -193,9 +331,9 @@ export default function ActivityDetailPage() {
               )}
             </div>
 
-            <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4">
-              <p className="text-sm font-semibold text-foreground">Zeitbereiche</p>
-              {isAdmin ? (
+            {isAdmin && (
+              <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4">
+                <p className="text-sm font-semibold text-foreground">Zeitbereiche verwalten</p>
                 <div className="flex flex-wrap items-center gap-3">
                   <Button asChild variant="outline" className="w-fit font-semibold uppercase tracking-wide">
                     <Link href={`/activities/${activity.id}/zeitbereiche`}>Zeitbereich hinzufügen</Link>
@@ -204,12 +342,58 @@ export default function ActivityDetailPage() {
                     Rollen verwalten
                   </Link>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Die Anmeldung zu Zeitbereichen ist noch nicht verfügbar und folgt mit einem späteren Update.
-                </p>
-              )}
-            </div>
+              </div>
+            )}
+
+            {showSignup && (
+              <div className="flex flex-col gap-3 rounded-lg border p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">Anmeldung</p>
+                  <Button asChild variant="outline" size="sm" className="font-semibold uppercase tracking-wide">
+                    <Link href={`/activities/${activity.id}/uebersicht`}>Übersicht</Link>
+                  </Button>
+                </div>
+
+                {signupError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{signupError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {!signupLoading && signupRows.length === 0 && !signupError && (
+                  <p className="text-sm text-muted-foreground">
+                    Für diese Activity sind noch keine Zeitbereiche mit Bedarf hinterlegt.
+                  </p>
+                )}
+
+                <ul className="flex flex-col gap-3">
+                  {signupRows.map((row) => (
+                    <li key={row.id} className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{row.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {resolveRoleName(roles, row.roleRef)} · {row.kommen} von {row.benoetigt}
+                          </p>
+                        </div>
+                        <label className="flex shrink-0 items-center gap-2 text-sm text-foreground">
+                          Ich bin dabei
+                          <Checkbox
+                            checked={row.checked}
+                            disabled={row.saving}
+                            onCheckedChange={() => void handleToggleSignup(row)}
+                          />
+                        </label>
+                      </div>
+                      {row.names.length > 0 && (
+                        <p className="text-sm text-muted-foreground">{row.names.join(", ")}</p>
+                      )}
+                      {row.error && <p className="text-sm text-destructive">{row.error}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </>
         )}
 
