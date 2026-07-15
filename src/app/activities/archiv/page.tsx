@@ -170,8 +170,8 @@ export default function ActivitiesArchivPage() {
                   <div className="flex shrink-0 items-center justify-center">
                     <button
                       type="button"
-                      aria-label="Zu Zeitbereichen"
-                      onClick={() => router.push(`/activities/${a.id}`)}
+                      aria-label="Zur Übersicht"
+                      onClick={() => router.push(`/activities/${a.id}/uebersicht`)}
                       className="text-brand-blue hover:opacity-80"
                     >
                       <List className="h-5 w-5" />
