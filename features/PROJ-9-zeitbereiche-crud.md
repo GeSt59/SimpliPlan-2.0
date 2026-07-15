@@ -314,4 +314,14 @@ src/app/activities/[id]/zeitbereiche/page.tsx (NEU)
 - **Recommendation:** Deploy möglich.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-14
+**Production URL:** https://simpliplan.toolies.eu/activities (Zeitbereiche-Link über die Activity-Detailseite bzw. direkt `https://simpliplan.toolies.eu/activities/[id]/zeitbereiche`)
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei jedem Push auf `main`, `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe PROJ-4).
+
+- Pre-Deployment-Checks: `npm run build` sauber, QA Approved (16/16 AC, 0 offene Bugs — BUG-1 vor dem Deploy gefixt und verifiziert), DB-Migration bereits während `/backend` live angewendet (`einstellungen.adalo_id` nullable + INSERT/UPDATE/DELETE-RLS-Policies). `npm run lint` weiterhin am vorbestehenden, projektunabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- Commit `feat(PROJ-9): ...` (Spec, Architecture, Frontend, Backend, QA + BUG-1-Fix gebündelt) — `.claude/settings.json` sowie die beiden PII-Referenz-Screenshots (`Mitgliederverwaltung.jpg`, `Profil anzeigen.jpg`) bewusst explizit von `git add` ausgenommen (analog zum PROJ-8-Sicherheitsvorfall — bleiben ungetrackt lokal)
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Run [`29415278564`](https://github.com/GeSt59/SimpliPlan-2.0/actions/runs/29415278564) — `completed` / `success`
+- Tag `v1.7.0-PROJ-9` erstellt und gepusht
+- Post-Deployment-Verifikation (read-only, per Playwright gegen die echte Domain): `/`, `/activities`, `/activities/1/zeitbereiche` liefern alle HTTP 200; unauthentifizierter Zugriff redirected korrekt zu "/"; keine Browser-Konsolenfehler
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-9, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3–8/15
