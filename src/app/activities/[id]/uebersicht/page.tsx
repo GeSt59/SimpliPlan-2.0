@@ -267,7 +267,9 @@ export default function ActivityUebersichtPage() {
 
   const addDialogRow = rows.find((r) => r.id === addDialogRowId) ?? null;
   const availableMembers = addDialogRow
-    ? members.filter((m) => !isMemberInRefs(m, addDialogRow.signups.map((s) => s.ref)))
+    ? members
+        .filter((m) => !isMemberInRefs(m, addDialogRow.signups.map((s) => s.ref)))
+        .sort((a, b) => (a.nachname ?? "").localeCompare(b.nachname ?? "", "de"))
     : [];
 
   return (
