@@ -2,7 +2,7 @@
 
 ## Status: In Progress
 **Created:** 2026-07-15
-**Last Updated:** 2026-07-15 (Frontend implementiert, Backend-Verifikation steht noch aus)
+**Last Updated:** 2026-07-15 (Backend fertig: Endpunkt end-to-end verifiziert, 15 Integrationstests)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Zugriff auf den eigenen Verein beschränken
@@ -158,6 +158,23 @@ Neuer Server-Endpunkt "Zeitbereich-Teilnehmer verwalten" (NEU, kein UI)
 - Die tatsächliche Berechtigungsprüfung (Admin-Check, Cross-Tenant-Schutz über `mitglieder_namen`) ist im Code vorhanden, aber noch nicht end-to-end verifiziert
 
 **Verifiziert:** `npm run build` läuft sauber durch (neue Route `/api/einstellungen/[id]/teilnehmer` kompiliert fehlerfrei). `npm test`: 70/70 (63 bestehend + 7 neue Unit-Tests für `resolveMemberId`/`isMemberInRefs`). Dev-Server-Smoke-Test der Übersicht-Route ohne Serverfehler.
+
+## Backend Implementation Notes
+
+**Keine DB-Migration nötig.** PROJ-11 nutzt ausschließlich bereits vorhandene Infrastruktur aus PROJ-9/10 (`einstellungen.eingeteilte_users`, `mitglieder_namen`-View, `users.admin`) — keine neue Tabelle, Spalte, Policy oder View.
+
+**Gebaut:**
+- `src/app/api/einstellungen/[id]/teilnehmer/teilnehmer.test.ts` (NEU) — 15 Vitest-Integrationstests für den in `/frontend` gebauten Endpunkt: ungültige/fehlende Eingaben (400), fehlende/ungültige Session (401), Nicht-Admin-Aufrufer (403), RLS-verstecktes Zeitbereich (403), Ziel-Mitglied aus fremdem Verein via `mitglieder_namen` nicht sichtbar (403), Hinzufügen (inkl. Idempotenz bei bereits vorhandenem Eintrag), Entfernen (inkl. `adalo_id`-Altdaten-Fallback, inkl. No-Op bei nicht vorhandenem Mitglied), Datenbankfehler (500) — durchgängig mit gemockten `supabase-scoped`/`supabase-admin`-Clients, analog zum bereits etablierten Testmuster aus `mitglieder-id.test.ts`
+
+**Manuell verifiziert** (per Skript mit echten JWTs gegen die echte Supabase-Instanz und den laufenden Dev-Server, mit isolierten, danach vollständig entfernten Testdaten — 2 Test-Vereine, 1 Test-Admin + 2 Test-Mitglieder in Verein A, 1 Test-Mitglied in Verein B, 1 echter Zeitbereich mit `ben=3`):
+- **Hinzufügen:** Admin trägt ein Mitglied erfolgreich ein (200); erneutes Hinzufügen erzeugt keinen Duplikat-Eintrag
+- **Entfernen:** Admin entfernt das Mitglied wieder erfolgreich (200), Eintrag verschwindet aus der Liste
+- **Autorisierung:** Nicht-Admin-Mitglied erhält 403 beim Versuch, jemanden hinzuzufügen
+- **Cross-Tenant-Schutz (Ziel):** Admin kann kein Mitglied eines fremden Vereins hinzufügen (403), Datenbank-Zustand danach per Service-Role-Abfrage bestätigt unverändert
+- **Cross-Tenant-Schutz (Zeitbereich):** Ein Mitglied eines fremden Vereins kann nicht einmal einen Versuch gegen einen fremden Zeitbereich starten (403, RLS versteckt die Zeile bereits)
+- **Auth/Validierung:** Unauthentifizierte Anfrage liefert 401, ungültiger `action`-Wert liefert 400
+
+**Verifiziert:** `npm run build` weiterhin sauber, `npm test`: 85/85 (70 bestehend + 15 neue Integrationstests für den Teilnehmer-Endpunkt).
 
 ## QA Test Results
 _To be added by /qa_
