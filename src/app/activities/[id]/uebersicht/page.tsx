@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { resolveRoleName, computeSignupStatus, SIGNUP_STATUS_ICON } from "@/lib/activities";
-import type { ZeitbereichRole } from "@/lib/activities";
+import { resolveRoleName, resolveMemberName, computeSignupStatus, SIGNUP_STATUS_ICON } from "@/lib/activities";
+import type { ZeitbereichRole, Member } from "@/lib/activities";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +16,7 @@ type UebersichtRow = {
   roleRef: (string | number)[] | null;
   kommen: number;
   benoetigt: number;
+  names: string[];
 };
 
 export default function ActivityUebersichtPage() {
@@ -103,10 +104,12 @@ export default function ActivityUebersichtPage() {
 
     setActivityName(activity.name ?? "");
 
-    const { data: roleData } = await supabase
-      .from("rollen")
-      .select("id, adalo_id, name")
-      .contains("vereine", [vId]);
+    const [{ data: roleData }, { data: memberData }] = await Promise.all([
+      supabase.from("rollen").select("id, adalo_id, name").contains("vereine", [vId]),
+      // Eingeschränkte View (nur id/adalo_id/vorname/nachname), da users für normale Mitglieder admin-only ist.
+      supabase.from("mitglieder_namen").select("id, adalo_id, vorname, nachname").contains("verein", [vId]),
+    ]);
+    const loadedMembers: Member[] = memberData ?? [];
     setRoles(roleData ?? []);
 
     const activityFilters = [`activity.cs.{${activity.id}}`];
@@ -130,13 +133,17 @@ export default function ActivityUebersichtPage() {
     setRows(
       (data ?? [])
         .filter((z) => z.rollen && z.rollen.length > 0)
-        .map((z) => ({
-          id: z.id,
-          label: z.zeitbereich ?? "",
-          roleRef: z.rollen,
-          kommen: z.eingeteilte_users?.length ?? 0,
-          benoetigt: z.ben ?? 0,
-        }))
+        .map((z) => {
+          const refs: (string | number)[] = z.eingeteilte_users ?? [];
+          return {
+            id: z.id,
+            label: z.zeitbereich ?? "",
+            roleRef: z.rollen,
+            kommen: refs.length,
+            benoetigt: z.ben ?? 0,
+            names: refs.map((ref) => resolveMemberName(loadedMembers, ref)).sort((a, b) => a.localeCompare(b, "de")),
+          };
+        })
     );
     setListLoading(false);
   }
@@ -201,19 +208,27 @@ export default function ActivityUebersichtPage() {
             const status = computeSignupStatus(row.kommen, row.benoetigt);
             const icon = SIGNUP_STATUS_ICON[status];
             return (
-              <li
-                key={row.id}
-                className="grid grid-cols-[1fr_3rem_3rem_3rem_2rem] items-center gap-2 rounded-lg border bg-card p-3 shadow-sm"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{row.label}</p>
-                  <p className="truncate text-xs text-muted-foreground">{resolveRoleName(roles, row.roleRef)}</p>
+              <li key={row.id} className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm">
+                <div className="grid grid-cols-[1fr_3rem_3rem_3rem_2rem] items-center gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{row.label}</p>
+                    <p className="truncate text-xs text-muted-foreground">{resolveRoleName(roles, row.roleRef)}</p>
+                  </div>
+                  <span className="text-center text-sm text-foreground">{row.kommen}</span>
+                  <span className="text-center text-sm text-foreground">{row.benoetigt}</span>
+                  <span className="text-center text-sm text-foreground">{row.benoetigt - row.kommen}</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={icon.src} alt={icon.alt} className="h-6 w-6 justify-self-center object-contain" />
                 </div>
-                <span className="text-center text-sm text-foreground">{row.kommen}</span>
-                <span className="text-center text-sm text-foreground">{row.benoetigt}</span>
-                <span className="text-center text-sm text-foreground">{row.benoetigt - row.kommen}</span>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={icon.src} alt={icon.alt} className="h-6 w-6 justify-self-center object-contain" />
+                {row.names.length > 0 && (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-t pt-2 text-sm text-foreground">
+                    {row.names.map((name, i) => (
+                      <span key={i} className="truncate">
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </li>
             );
           })}
