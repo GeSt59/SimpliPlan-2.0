@@ -8,8 +8,10 @@ import {
   resolveRoleName,
   buildDefaultZeitbereichSlots,
   normalizeTimeValue,
+  resolveMemberName,
+  computeSignupStatus,
 } from "./activities";
-import type { ActivityCategory, ZeitbereichRole } from "./activities";
+import type { ActivityCategory, ZeitbereichRole, Member } from "./activities";
 
 const categories: ActivityCategory[] = [
   { id: 1, adalo_id: null, name: "Stammtisch", picture_url: "https://example.com/stammtisch.jpg" },
@@ -154,5 +156,47 @@ describe("normalizeTimeValue", () => {
 
   it("leaves non-time strings untouched instead of throwing", () => {
     expect(normalizeTimeValue("nicht eine Uhrzeit")).toBe("nicht eine Uhrzeit");
+  });
+});
+
+const members: Member[] = [
+  { id: 10, adalo_id: 555, vorname: "Wolfgang", nachname: "Almhofer" },
+  { id: 11, adalo_id: null, nachname: "Grubelnik", vorname: "Peter" },
+];
+
+describe("resolveMemberName", () => {
+  it("resolves by Supabase id (own signups going forward)", () => {
+    expect(resolveMemberName(members, 11)).toBe("Grubelnik Peter");
+  });
+
+  it("falls back to adalo_id (legacy eingeteilte_users entries)", () => {
+    expect(resolveMemberName(members, "555")).toBe("Almhofer Wolfgang");
+  });
+
+  it("returns a placeholder when the referenced member is unknown", () => {
+    expect(resolveMemberName(members, 999)).toBe("Unbekannt");
+  });
+
+  it("returns the placeholder instead of a blank string when both names are empty", () => {
+    const blank: Member[] = [{ id: 1, adalo_id: null, vorname: "", nachname: "" }];
+    expect(resolveMemberName(blank, 1)).toBe("Unbekannt");
+  });
+});
+
+describe("computeSignupStatus", () => {
+  it("returns zu_wenig when fewer members signed up than needed", () => {
+    expect(computeSignupStatus(1, 5)).toBe("zu_wenig");
+  });
+
+  it("returns genau_richtig when the count matches exactly", () => {
+    expect(computeSignupStatus(5, 5)).toBe("genau_richtig");
+  });
+
+  it("returns zu_viel when more members signed up than needed", () => {
+    expect(computeSignupStatus(8, 5)).toBe("zu_viel");
+  });
+
+  it("treats 0 needed / 0 signed up as genau_richtig, not zu_wenig", () => {
+    expect(computeSignupStatus(0, 0)).toBe("genau_richtig");
   });
 });
