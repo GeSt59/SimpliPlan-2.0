@@ -1,8 +1,8 @@
 # PROJ-10: Mitglied-Anmeldung zu Zeitbereichen
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-15
-**Last Updated:** 2026-07-15 (QA abgeschlossen: 19/19 AC bestanden, 0 Bugs, production-ready)
+**Last Updated:** 2026-07-15 (deployed to production)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Zugriff auf den eigenen Verein beschränken
@@ -318,4 +318,14 @@ Keine. Alle 19 Akzeptanzkriterien, alle dokumentierten Edge Cases (bis auf zwei 
 - **Recommendation:** Deploy möglich.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-15
+**Production URL:** https://simpliplan.toolies.eu/activities (Anmeldung: `https://simpliplan.toolies.eu/activities/[id]`, Übersicht: `https://simpliplan.toolies.eu/activities/[id]/uebersicht`)
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei jedem Push auf `main`, `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe PROJ-4).
+
+- Pre-Deployment-Checks: `npm run build` sauber, QA Approved (19/19 AC, 0 Bugs), DB-Migration (`proj10_mitglieder_namen_view`) bereits während `/backend` live angewendet, kein neuer Eintrag in `.env.local.example` nötig (keine neuen Env-Vars), Diff auf Secrets geprüft (keiner gefunden). `npm run lint` weiterhin am vorbestehenden, projektunabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- Commit `test(PROJ-10): ...` (letzter von 6 Commits: Spec, Architecture, Frontend, Backend, 2× Refine, QA) gepusht nach `main`. `.claude/settings.json`, die beiden PII-Referenzscreenshots sowie umfangreiche unfertige, nicht mit PROJ-10 zusammenhängende Layout-Änderungen an anderen Seiten (Rollen/Kategorien/Mitglieder/Profil/Bottom-Tab-Bar, bereits im Arbeitsverzeichnis vorgefunden) blieben bewusst ungetrackt/uncommitted
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Run [`29448340662`](https://github.com/GeSt59/SimpliPlan-2.0/actions/runs/29448340662) — `completed` / `success`
+- Tag `v1.8.0-PROJ-10` erstellt und gepusht
+- Post-Deployment-Verifikation (read-only, per Playwright gegen die echte Domain): `/`, `/activities`, `/activities/1`, `/activities/1/uebersicht`, `/activities/archiv` liefern alle HTTP 200; unauthentifizierter Zugriff auf die neue Übersicht-Route redirected korrekt zu "/"; keine Browser-Konsolenfehler auf der Startseite
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-10, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3–9/15
