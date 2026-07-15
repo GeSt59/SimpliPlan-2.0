@@ -471,12 +471,13 @@ export default function MitgliederPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-40">
-      <div className="bg-brand-blue px-4 py-6 text-center">
-        <h1 className="font-heading text-2xl font-bold text-white">Mitgliederverwaltung</h1>
-      </div>
+    <main className="flex min-h-screen justify-center bg-background">
+      <div className="flex w-full max-w-[600px] flex-col pb-16">
+        <div className="bg-brand-blue px-4 py-3 text-center">
+          <h1 className="font-heading text-[21px] font-medium text-white">Mitgliederverwaltung</h1>
+        </div>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6">
+        <div className="flex w-full flex-1 flex-col gap-6 border border-gray-400 bg-gray-100 px-4 py-6">
         {vereinId && (
           <Button
             onClick={toggleView}
@@ -572,7 +573,7 @@ export default function MitgliederPage() {
                 {filteredMitglieder.map((m) => (
                   <li
                     key={m.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -692,17 +693,22 @@ export default function MitgliederPage() {
         <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
           <Link href="/">Zurück</Link>
         </Button>
+        </div>
       </div>
 
       {vereinId && (
-        <button
-          type="button"
-          onClick={openCreateDialog}
-          aria-label="Neues Mitglied anlegen"
-          className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
-        >
-          <Plus className="h-6 w-6" />
-        </button>
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-center">
+          <div className="flex w-full max-w-[600px] justify-center px-6">
+            <button
+              type="button"
+              onClick={openCreateDialog}
+              aria-label="Neues Mitglied anlegen"
+              className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
+            >
+              <Plus className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

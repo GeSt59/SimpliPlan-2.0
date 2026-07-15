@@ -242,16 +242,17 @@ export default function RollenPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background pb-40">
-      <header className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-4 text-white">
-        <Link href="/" aria-label="Zurück">
-          <ArrowLeft className="h-6 w-6" />
-        </Link>
-        <h1 className="text-center font-heading text-lg font-bold">Rolle ändern/löschen</h1>
-        <span />
-      </header>
+    <div className="flex min-h-screen justify-center bg-background">
+      <div className="flex w-full max-w-[600px] flex-col pb-16">
+        <header className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-2 text-white">
+          <Link href="/" aria-label="Zurück">
+            <ArrowLeft className="h-6 w-6" />
+          </Link>
+          <h1 className="text-center font-heading text-[15px] font-medium">Rolle ändern/löschen</h1>
+          <span />
+        </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
+        <div className="flex w-full flex-1 flex-col gap-4 border border-gray-400 bg-gray-100 px-4 py-6">
         {listError && (
           <Alert variant="destructive">
             <AlertDescription>{listError}</AlertDescription>
@@ -267,7 +268,7 @@ export default function RollenPage() {
         {!listLoading && rows.length > 0 && (
           <ul className="flex flex-col gap-3">
             {rows.map((row) => (
-              <li key={row.key} className="rounded-lg border bg-white p-3 shadow-sm">
+              <li key={row.key} className="rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -306,6 +307,7 @@ export default function RollenPage() {
             ))}
           </ul>
         )}
+        </div>
       </div>
 
       <button

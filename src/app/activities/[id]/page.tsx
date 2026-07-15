@@ -272,19 +272,20 @@ export default function ActivityDetailPage() {
   const showSignup = !!activity && !isPastDate(activity.du_zbis);
 
   return (
-    <main className="min-h-screen bg-background pb-32">
-      <div className="relative bg-brand-blue px-4 py-6 text-center">
-        <Link
-          href="/activities"
-          aria-label="Zurück zu Activities"
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
-        >
-          <ArrowLeft className="h-6 w-6" />
-        </Link>
-        <h1 className="font-heading text-2xl font-bold text-white">{activity?.name}</h1>
-      </div>
+    <main className="flex min-h-screen justify-center bg-background">
+      <div className="flex w-full max-w-[600px] flex-col pb-16">
+        <div className="relative bg-brand-blue px-4 py-3 text-center">
+          <Link
+            href="/activities"
+            aria-label="Zurück zu Activities"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </Link>
+          <h1 className="font-heading text-[21px] font-medium text-white">{activity?.name}</h1>
+        </div>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6">
+        <div className="flex w-full flex-1 flex-col gap-6 border border-gray-400 bg-gray-100 px-4 py-6">
         {loadError && (
           <Alert variant="destructive">
             <AlertDescription>{loadError}</AlertDescription>
@@ -402,6 +403,7 @@ export default function ActivityDetailPage() {
         <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
           <Link href="/activities">Zurück zu Activities</Link>
         </Button>
+        </div>
       </div>
     </main>
   );

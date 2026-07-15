@@ -321,16 +321,17 @@ export default function KategorienPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background pb-40">
-      <header className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-4 text-white">
-        <Link href="/" aria-label="Zurück">
-          <ArrowLeft className="h-6 w-6" />
-        </Link>
-        <h1 className="text-center font-heading text-lg font-bold">Kategorien ändern</h1>
-        <span />
-      </header>
+    <div className="flex min-h-screen justify-center bg-background">
+      <div className="flex w-full max-w-[600px] flex-col pb-16">
+        <header className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-2 text-white">
+          <Link href="/" aria-label="Zurück">
+            <ArrowLeft className="h-6 w-6" />
+          </Link>
+          <h1 className="text-center font-heading text-[15px] font-medium">Kategorien ändern</h1>
+          <span />
+        </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
+        <div className="flex w-full flex-1 flex-col gap-4 border border-gray-400 bg-gray-100 px-4 py-6">
         {listError && (
           <Alert variant="destructive">
             <AlertDescription>{listError}</AlertDescription>
@@ -348,7 +349,7 @@ export default function KategorienPage() {
             {kategorien.map((kategorie) => (
               <li
                 key={kategorie.id}
-                className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm"
+                className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
               >
                 <button
                   type="button"
@@ -360,10 +361,10 @@ export default function KategorienPage() {
                     <img
                       src={kategorie.picture_url}
                       alt={kategorie.name}
-                      className="h-auto w-[80px] shrink-0 rounded-md border object-contain"
+                      className="h-auto w-[80px] shrink-0 rounded-md border bg-white object-contain"
                     />
                   ) : (
-                    <div className="h-10 w-10 shrink-0 rounded-md border bg-muted" />
+                    <div className="h-10 w-10 shrink-0 rounded-md border bg-white" />
                   )}
                   <span className="min-w-0 truncate text-sm font-medium text-foreground">{kategorie.name}</span>
                 </button>
@@ -379,6 +380,7 @@ export default function KategorienPage() {
             ))}
           </ul>
         )}
+        </div>
       </div>
 
       <button

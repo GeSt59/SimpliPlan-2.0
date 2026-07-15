@@ -120,12 +120,13 @@ export default function ActivitiesArchivPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-32">
-      <div className="bg-brand-blue px-4 py-6 text-center">
-        <h1 className="font-heading text-2xl font-bold text-white">Activities-Archiv</h1>
-      </div>
+    <main className="flex min-h-screen justify-center bg-background">
+      <div className="flex w-full max-w-[600px] flex-col pb-16">
+        <div className="bg-brand-blue px-4 py-3 text-center">
+          <h1 className="font-heading text-[21px] font-medium text-white">Activities-Archiv</h1>
+        </div>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6">
+        <div className="flex w-full flex-1 flex-col gap-6 border border-gray-400 bg-gray-100 px-4 py-6">
         <Input
           placeholder="Suche nach Titel, Ort oder Beschreibung..."
           value={search}
@@ -151,8 +152,8 @@ export default function ActivitiesArchivPage() {
             {filteredActivities.map((a) => {
               const pictureUrl = resolveCategoryPicture(categories, a.category);
               return (
-                <li key={a.id} className="flex items-stretch gap-3 rounded-lg border bg-card p-3 shadow-sm">
-                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-muted">
+                <li key={a.id} className="flex items-stretch gap-3 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-white">
                     {pictureUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={pictureUrl} alt="" className="h-full w-full object-cover" />
@@ -186,6 +187,7 @@ export default function ActivitiesArchivPage() {
         <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
           <Link href="/activities">Zurück zu Activities</Link>
         </Button>
+        </div>
       </div>
     </main>
   );

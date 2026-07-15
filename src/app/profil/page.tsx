@@ -51,26 +51,28 @@ export default function ProfilPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-24">
-      <div className="bg-brand-blue px-4 py-6 text-center">
-        <h1 className="font-heading text-2xl font-bold text-white">Profil</h1>
-      </div>
+    <main className="flex min-h-screen justify-center bg-background">
+      <div className="flex w-full max-w-[600px] flex-col pb-16">
+        <div className="bg-brand-blue px-4 py-3 text-center">
+          <h1 className="font-heading text-[21px] font-medium text-white">Profil</h1>
+        </div>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6">
-        <p className="text-sm text-foreground">Eingeloggt als {email}</p>
+        <div className="flex w-full flex-1 flex-col gap-5 border border-gray-400 bg-gray-100 px-4 py-6">
+          <p className="text-sm text-foreground">Eingeloggt als {email}</p>
 
-        {isAdmin && (
-          <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-            <Link href="/voreinstellung">Vereinseinstellungen</Link>
+          {isAdmin && (
+            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+              <Link href="/voreinstellung">Vereinseinstellungen</Link>
+            </Button>
+          )}
+
+          <Button
+            onClick={handleLogout}
+            className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+          >
+            Logout
           </Button>
-        )}
-
-        <Button
-          onClick={handleLogout}
-          className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
-        >
-          Logout
-        </Button>
+        </div>
       </div>
     </main>
   );

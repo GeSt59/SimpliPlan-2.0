@@ -353,19 +353,20 @@ export default function ZeitbereichePage() {
   const zeroCount = rows.filter((r) => r.id != null && r.benoetigt === 0).length;
 
   return (
-    <main className="min-h-screen bg-background pb-40">
-      <div className="relative bg-brand-blue px-4 py-6 text-center">
-        <Link
-          href={`/activities/${activityId}`}
-          aria-label="Zurück zur Activity"
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
-        >
-          <ArrowLeft className="h-6 w-6" />
-        </Link>
-        <h1 className="font-heading text-2xl font-bold text-white">{activityName}</h1>
-      </div>
+    <main className="flex min-h-screen justify-center bg-background">
+      <div className="flex w-full max-w-[600px] flex-col pb-16">
+        <div className="relative bg-brand-blue px-4 py-3 text-center">
+          <Link
+            href={`/activities/${activityId}`}
+            aria-label="Zurück zur Activity"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </Link>
+          <h1 className="font-heading text-[21px] font-medium text-white">{activityName}</h1>
+        </div>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
+        <div className="flex w-full flex-1 flex-col gap-4 border border-gray-400 bg-gray-100 px-4 py-6">
         {listError && (
           <Alert variant="destructive">
             <AlertDescription>{listError}</AlertDescription>
@@ -397,7 +398,7 @@ export default function ZeitbereichePage() {
 
         <ul className="flex flex-col gap-3">
           {rows.map((row) => (
-            <li key={row.key} className="flex flex-col gap-2 rounded-lg border bg-white p-3 shadow-sm">
+            <li key={row.key} className="flex flex-col gap-2 rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -479,6 +480,7 @@ export default function ZeitbereichePage() {
         <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
           <Link href={`/activities/${activityId}`}>Zurück zur Activity</Link>
         </Button>
+        </div>
       </div>
 
       <button
