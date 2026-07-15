@@ -3,21 +3,51 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Printer, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { resolveRoleName, resolveMemberName, computeSignupStatus, SIGNUP_STATUS_ICON } from "@/lib/activities";
+import {
+  resolveRoleName,
+  resolveMemberName,
+  resolveMemberId,
+  isMemberInRefs,
+  computeSignupStatus,
+  SIGNUP_STATUS_ICON,
+} from "@/lib/activities";
 import type { ZeitbereichRole, Member } from "@/lib/activities";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+type Signup = { ref: string | number; name: string; memberId: number | null };
 
 type UebersichtRow = {
   id: number;
   label: string;
   roleRef: (string | number)[] | null;
-  kommen: number;
   benoetigt: number;
-  names: string[];
+  signups: Signup[];
+  saving: boolean;
+  error: string | null;
 };
+
+type RemoveTarget = { rowId: number; memberId: number; name: string };
 
 export default function ActivityUebersichtPage() {
   const params = useParams<{ id: string }>();
@@ -25,15 +55,21 @@ export default function ActivityUebersichtPage() {
 
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [vereinId, setVereinId] = useState<number | null>(null);
 
   const [activityName, setActivityName] = useState<string>("");
   const [notFound, setNotFound] = useState(false);
 
   const [roles, setRoles] = useState<ZeitbereichRole[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [rows, setRows] = useState<UebersichtRow[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+
+  const [addDialogRowId, setAddDialogRowId] = useState<number | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
+  const [removeSaving, setRemoveSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -49,7 +85,7 @@ export default function ActivityUebersichtPage() {
 
       const { data: userRow } = await supabase
         .from("users")
-        .select("verein")
+        .select("admin, verein")
         .eq("auth_user_id", session.user.id)
         .maybeSingle();
 
@@ -63,6 +99,7 @@ export default function ActivityUebersichtPage() {
       }
 
       setVereinId(vId);
+      setIsAdmin(!!userRow?.admin);
       setAllowed(true);
       setChecking(false);
     }
@@ -106,11 +143,11 @@ export default function ActivityUebersichtPage() {
 
     const [{ data: roleData }, { data: memberData }] = await Promise.all([
       supabase.from("rollen").select("id, adalo_id, name").contains("vereine", [vId]),
-      // Eingeschränkte View (nur id/adalo_id/vorname/nachname), da users für normale Mitglieder admin-only ist.
       supabase.from("mitglieder_namen").select("id, adalo_id, vorname, nachname").contains("verein", [vId]),
     ]);
     const loadedMembers: Member[] = memberData ?? [];
     setRoles(roleData ?? []);
+    setMembers(loadedMembers);
 
     const activityFilters = [`activity.cs.{${activity.id}}`];
     if (activity.adalo_id != null) {
@@ -139,13 +176,74 @@ export default function ActivityUebersichtPage() {
             id: z.id,
             label: z.zeitbereich ?? "",
             roleRef: z.rollen,
-            kommen: refs.length,
             benoetigt: z.ben ?? 0,
-            names: refs.map((ref) => resolveMemberName(loadedMembers, ref)).sort((a, b) => a.localeCompare(b, "de")),
+            signups: refs
+              .map((ref) => ({
+                ref,
+                name: resolveMemberName(loadedMembers, ref),
+                memberId: resolveMemberId(loadedMembers, ref),
+              }))
+              .sort((a, b) => a.name.localeCompare(b.name, "de")),
+            saving: false,
+            error: null,
           };
         })
     );
     setListLoading(false);
+  }
+
+  function updateRow(rowId: number, patch: Partial<UebersichtRow>) {
+    setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, ...patch } : r)));
+  }
+
+  async function callTeilnehmerEndpoint(zeitbereichId: number, action: "hinzufuegen" | "entfernen", mitgliedId: number) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    return fetch(`/api/einstellungen/${zeitbereichId}/teilnehmer`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action, mitgliedId }),
+    });
+  }
+
+  async function handleAdd(rowId: number, member: Member) {
+    updateRow(rowId, { saving: true, error: null });
+
+    try {
+      const res = await callTeilnehmerEndpoint(rowId, "hinzufuegen", member.id);
+      if (!res.ok) {
+        updateRow(rowId, { saving: false, error: "Hinzufügen fehlgeschlagen. Bitte versuche es erneut." });
+        return;
+      }
+      setAddDialogRowId(null);
+      if (vereinId) await loadData(vereinId);
+    } catch {
+      updateRow(rowId, { saving: false, error: "Server nicht erreichbar. Bitte versuche es später erneut." });
+    }
+  }
+
+  async function confirmRemove() {
+    if (!removeTarget) return;
+    setRemoveSaving(true);
+    updateRow(removeTarget.rowId, { error: null });
+
+    try {
+      const res = await callTeilnehmerEndpoint(removeTarget.rowId, "entfernen", removeTarget.memberId);
+      if (!res.ok) {
+        updateRow(removeTarget.rowId, { error: "Entfernen fehlgeschlagen. Bitte versuche es erneut." });
+        setRemoveSaving(false);
+        return;
+      }
+      setRemoveTarget(null);
+      setRemoveSaving(false);
+      if (vereinId) await loadData(vereinId);
+    } catch {
+      updateRow(removeTarget.rowId, { error: "Server nicht erreichbar. Bitte versuche es später erneut." });
+      setRemoveSaving(false);
+    }
   }
 
   if (checking || (!notFound && listLoading)) {
@@ -167,77 +265,155 @@ export default function ActivityUebersichtPage() {
     );
   }
 
+  const addDialogRow = rows.find((r) => r.id === addDialogRowId) ?? null;
+  const availableMembers = addDialogRow
+    ? members.filter((m) => !isMemberInRefs(m, addDialogRow.signups.map((s) => s.ref)))
+    : [];
+
   return (
-    <main className="min-h-screen bg-background pb-32">
-      <div className="relative bg-brand-blue px-4 py-6 text-center">
-        <Link
-          href={`/activities/${activityId}`}
-          aria-label="Zurück zur Activity"
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
-        >
-          <ArrowLeft className="h-6 w-6" />
-        </Link>
-        <h1 className="font-heading text-2xl font-bold text-white">{activityName}</h1>
+    <main className="flex min-h-screen justify-center bg-background">
+      <div className="flex w-full max-w-[600px] flex-col pb-16">
+        <div className="relative bg-brand-blue px-4 py-3 text-center">
+          <Link
+            href={`/activities/${activityId}`}
+            aria-label="Zurück zur Activity"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white print:hidden"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </Link>
+          <h1 className="font-heading text-[21px] font-medium text-white">{activityName}</h1>
+          {isAdmin && (
+            <button
+              type="button"
+              aria-label="Drucken"
+              onClick={() => window.print()}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white print:hidden"
+            >
+              <Printer className="h-6 w-6" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex w-full flex-1 flex-col gap-4 border border-gray-400 bg-gray-100 px-4 py-6">
+          {listError && (
+            <Alert variant="destructive">
+              <AlertDescription>{listError}</AlertDescription>
+            </Alert>
+          )}
+
+          {!listLoading && rows.length === 0 && !listError && (
+            <p className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+              Für diese Activity sind noch keine Zeitbereiche mit Bedarf hinterlegt.
+            </p>
+          )}
+
+          {rows.length > 0 && (
+            <div className="grid grid-cols-[1fr_3rem_3rem_3rem_2rem] items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>Zeitbereich</span>
+              <span className="text-center">kommen</span>
+              <span className="text-center">insg.</span>
+              <span className="text-center">offen</span>
+              <span />
+            </div>
+          )}
+
+          <ul className="flex flex-col gap-2">
+            {rows.map((row) => {
+              const kommen = row.signups.length;
+              const status = computeSignupStatus(kommen, row.benoetigt);
+              const icon = SIGNUP_STATUS_ICON[status];
+              return (
+                <li key={row.id} className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+                  <div className="grid grid-cols-[1fr_3rem_3rem_3rem_2rem] items-center gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{row.label}</p>
+                      <p className="truncate text-xs text-muted-foreground">{resolveRoleName(roles, row.roleRef)}</p>
+                    </div>
+                    <span className="text-center text-sm text-foreground">{kommen}</span>
+                    <span className="text-center text-sm text-foreground">{row.benoetigt}</span>
+                    <span className="text-center text-sm text-foreground">{row.benoetigt - kommen}</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={icon.src} alt={icon.alt} className="h-6 w-6 justify-self-center object-contain print:hidden" />
+                  </div>
+
+                  {row.signups.length > 0 && (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-t pt-2 text-sm text-foreground">
+                      {row.signups.map((s) => (
+                        <div key={String(s.ref)} className="flex min-w-0 items-center gap-1">
+                          <span className="truncate">{s.name}</span>
+                          {isAdmin && s.memberId != null && (
+                            <button
+                              type="button"
+                              aria-label={`${s.name} entfernen`}
+                              onClick={() => setRemoveTarget({ rowId: row.id, memberId: s.memberId!, name: s.name })}
+                              className="shrink-0 text-brand-gold hover:opacity-80 print:hidden"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setAddDialogRowId(row.id)}
+                      disabled={row.saving}
+                      className="flex items-center justify-center gap-2 rounded-md border border-dashed py-2 text-sm font-medium text-brand-blue hover:bg-muted disabled:opacity-50 print:hidden"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Mitglied hinzufügen
+                    </button>
+                  )}
+
+                  {row.error && <p className="text-sm text-destructive print:hidden">{row.error}</p>}
+                </li>
+              );
+            })}
+          </ul>
+
+          <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide print:hidden">
+            <Link href={`/activities/${activityId}`}>Zurück zur Anmeldung</Link>
+          </Button>
+        </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
-        {listError && (
-          <Alert variant="destructive">
-            <AlertDescription>{listError}</AlertDescription>
-          </Alert>
-        )}
+      <CommandDialog open={addDialogRowId !== null} onOpenChange={(open) => !open && setAddDialogRowId(null)}>
+        <CommandInput placeholder="Mitglied suchen..." />
+        <CommandList>
+          <CommandEmpty>Alle Mitglieder sind bereits zugesagt.</CommandEmpty>
+          <CommandGroup>
+            {availableMembers.map((m) => (
+              <CommandItem
+                key={m.id}
+                value={resolveMemberName(members, m.id)}
+                onSelect={() => addDialogRowId != null && void handleAdd(addDialogRowId, m)}
+              >
+                {resolveMemberName(members, m.id)}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
 
-        {!listLoading && rows.length === 0 && !listError && (
-          <p className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-            Für diese Activity sind noch keine Zeitbereiche mit Bedarf hinterlegt.
-          </p>
-        )}
-
-        {rows.length > 0 && (
-          <div className="grid grid-cols-[1fr_3rem_3rem_3rem_2rem] items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Zeitbereich</span>
-            <span className="text-center">kommen</span>
-            <span className="text-center">insg.</span>
-            <span className="text-center">offen</span>
-            <span />
-          </div>
-        )}
-
-        <ul className="flex flex-col gap-2">
-          {rows.map((row) => {
-            const status = computeSignupStatus(row.kommen, row.benoetigt);
-            const icon = SIGNUP_STATUS_ICON[status];
-            return (
-              <li key={row.id} className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm">
-                <div className="grid grid-cols-[1fr_3rem_3rem_3rem_2rem] items-center gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{row.label}</p>
-                    <p className="truncate text-xs text-muted-foreground">{resolveRoleName(roles, row.roleRef)}</p>
-                  </div>
-                  <span className="text-center text-sm text-foreground">{row.kommen}</span>
-                  <span className="text-center text-sm text-foreground">{row.benoetigt}</span>
-                  <span className="text-center text-sm text-foreground">{row.benoetigt - row.kommen}</span>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={icon.src} alt={icon.alt} className="h-6 w-6 justify-self-center object-contain" />
-                </div>
-                {row.names.length > 0 && (
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-t pt-2 text-sm text-foreground">
-                    {row.names.map((name, i) => (
-                      <span key={i} className="truncate">
-                        {name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-
-        <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-          <Link href={`/activities/${activityId}`}>Zurück zur Anmeldung</Link>
-        </Button>
-      </div>
+      <AlertDialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mitglied entfernen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              „{removeTarget?.name}" wird aus diesem Zeitbereich entfernt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction disabled={removeSaving} onClick={() => void confirmRemove()}>
+              {removeSaving ? "Wird entfernt..." : "Entfernen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

@@ -1,8 +1,8 @@
 # PROJ-11: Teilnehmer-Übersicht (Admin)
 
-## Status: Architected
+## Status: In Progress
 **Created:** 2026-07-15
-**Last Updated:** 2026-07-15 (Tech Design abgeschlossen)
+**Last Updated:** 2026-07-15 (Frontend implementiert, Backend-Verifikation steht noch aus)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Zugriff auf den eigenen Verein beschränken
@@ -140,6 +140,24 @@ Neuer Server-Endpunkt "Zeitbereich-Teilnehmer verwalten" (NEU, kein UI)
 
 - Keine neuen Pakete: `@supabase/supabase-js`, `zod`, `shadcn/ui` (`command`, `alert-dialog` — beide bereits installiert)
 - Der neue Endpunkt nutzt dieselbe bereits vorhandene Infrastruktur wie `/api/mitglieder/[id]` und `/api/einstellungen/[id]/anmeldung` (Zugriffsprüfung anhand der Anfrage + privilegierter Datenbankzugriff für die eigentliche Änderung)
+
+## Frontend Implementation Notes
+
+**Gebaut:**
+- `src/lib/activities.ts` — `resolveMemberId` (löst einen `eingeteilte_users`-Eintrag auf die echte Supabase-`id` auf, auch bei einem adalo_id-Alteintrag; der neue Admin-Endpunkt braucht immer die echte `id`), `isMemberInRefs` (prüft, ob ein Mitglied per `id`/`adalo_id` bereits in einer Liste steckt — Basis für die "wer kann noch hinzugefügt werden"-Filterung)
+- `src/app/api/einstellungen/[id]/teilnehmer/route.ts` (NEU) — POST-Endpunkt, getrennt vom PROJ-10-Selbst-Anmeldung-Endpunkt: prüft zuerst `users.admin`, dann dass sowohl der Zeitbereich (RLS-scoped SELECT) als auch das Ziel-Mitglied (Lookup über `mitglieder_namen`, ebenfalls verein-beschränkt) zum eigenen Verein gehören; erst danach wird die im Request angegebene `mitgliedId` ein-/ausgetragen
+- `src/app/activities/[id]/uebersicht/page.tsx` (GEÄNDERT) — lädt zusätzlich `isAdmin` und die volle Mitgliederliste (`mitglieder_namen`); pro Zeile jetzt: "Entfernen"-Icon je Name (nur Admin, mit `AlertDialog`-Bestätigung), "Mitglied hinzufügen"-Button (nur Admin) öffnet einen gemeinsamen `CommandDialog` mit durchsuchbarer, gefilterter Mitgliederliste (bereits Zugesagte ausgeblendet über `isMemberInRefs`), "Drucken"-Button (nur Admin) ruft `window.print()`
+- `src/app/globals.css` (GEÄNDERT) — globale `@media print`-Regel blendet `nav`-Elemente (Bottom-Tab-Bar) beim Drucken aus; auf der Übersicht-Seite selbst blenden `print:hidden`-Klassen Zurück-Pfeil, Drucken-Button, Status-Icons, Entfernen-/Hinzufügen-Buttons und den "Zurück zur Anmeldung"-Button aus — Zeitbereich-Label, Rolle, Zahlen und Namen bleiben sichtbar
+
+**Keine Datumsprüfung ergänzt (wie geplant):** Die Seite prüft weiterhin nicht, ob die Activity vergangen ist — Admin-Aktionen funktionieren dadurch bereits für archivierte Activities, ohne zusätzlichen Code (Architektur-Entscheidung bereits umgesetzt).
+
+**Hinweis zur Commit-Historie:** `src/app/activities/[id]/uebersicht/page.tsx` enthielt bereits vor Beginn von PROJ-11 ein unfertiges, nicht committetes Layout-Redesign (zentrierter `max-w-[600px]`-Container, neue Schatten-/Rahmenstile) aus einer separaten, parallelen Arbeit des Users. Da die neuen PROJ-11-Elemente direkt auf dieser bestehenden Struktur aufbauen mussten, lässt sich dieser Layout-Anteil nicht mehr sauber vom PROJ-11-Funktionsanteil trennen — der Commit für PROJ-11 trägt ihn für diese eine Datei zwangsläufig mit. Alle anderen Dateien mit demselben unfertigen Redesign (Rollen/Kategorien/Mitglieder/Profil/Bottom-Tab-Bar-Komponente selbst/weitere Activity-Unterseiten) bleiben weiterhin unangetastet und uncommitted.
+
+**Nicht getestet (erwartete Blocker für `/backend`, analog zu allen bisherigen Features):**
+- Der neue Endpunkt wurde nur gegen den TypeScript-Compiler geprüft, noch nicht live mit echten Admin-/Mitglieds-Accounts gegen die echte Supabase-Instanz
+- Die tatsächliche Berechtigungsprüfung (Admin-Check, Cross-Tenant-Schutz über `mitglieder_namen`) ist im Code vorhanden, aber noch nicht end-to-end verifiziert
+
+**Verifiziert:** `npm run build` läuft sauber durch (neue Route `/api/einstellungen/[id]/teilnehmer` kompiliert fehlerfrei). `npm test`: 70/70 (63 bestehend + 7 neue Unit-Tests für `resolveMemberId`/`isMemberInRefs`). Dev-Server-Smoke-Test der Übersicht-Route ohne Serverfehler.
 
 ## QA Test Results
 _To be added by /qa_

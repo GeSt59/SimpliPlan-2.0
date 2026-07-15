@@ -83,3 +83,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* PROJ-11: App-Navigation (Bottom-Tab-Bar) beim Drucken ausblenden. */
+@media print {
+  nav {
+    display: none !important;
+  }
+}

@@ -32,6 +32,18 @@ export function resolveMemberName(members: Member[], ref: string | number): stri
   return `${member.nachname ?? ""} ${member.vorname ?? ""}`.trim() || "Unbekannt";
 }
 
+/** Liefert die echte Supabase-id zu einem eingeteilte_users-Eintrag (id oder adalo_id), z.B. für den PROJ-11-Admin-Endpunkt, der eine echte id erwartet. */
+export function resolveMemberId(members: Member[], ref: string | number): number | null {
+  return findMember(members, ref)?.id ?? null;
+}
+
+/** Prüft, ob ein Mitglied (per id oder adalo_id) bereits in einer eingeteilte_users-Liste enthalten ist. */
+export function isMemberInRefs(member: Member, refs: (string | number)[]): boolean {
+  return refs.some(
+    (ref) => String(ref) === String(member.id) || (member.adalo_id != null && String(ref) === String(member.adalo_id))
+  );
+}
+
 export type SignupStatus = "zu_wenig" | "genau_richtig" | "zu_viel";
 
 export function computeSignupStatus(kommen: number, benoetigt: number): SignupStatus {

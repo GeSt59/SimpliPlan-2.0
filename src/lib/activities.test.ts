@@ -9,6 +9,8 @@ import {
   buildDefaultZeitbereichSlots,
   normalizeTimeValue,
   resolveMemberName,
+  resolveMemberId,
+  isMemberInRefs,
   computeSignupStatus,
 } from "./activities";
 import type { ActivityCategory, ZeitbereichRole, Member } from "./activities";
@@ -180,6 +182,38 @@ describe("resolveMemberName", () => {
   it("returns the placeholder instead of a blank string when both names are empty", () => {
     const blank: Member[] = [{ id: 1, adalo_id: null, vorname: "", nachname: "" }];
     expect(resolveMemberName(blank, 1)).toBe("Unbekannt");
+  });
+});
+
+describe("resolveMemberId", () => {
+  it("resolves the true Supabase id by id", () => {
+    expect(resolveMemberId(members, 11)).toBe(11);
+  });
+
+  it("resolves the true Supabase id via the legacy adalo_id fallback (PROJ-11 admin endpoint needs the real id)", () => {
+    expect(resolveMemberId(members, "555")).toBe(10);
+  });
+
+  it("returns null when the referenced member is unknown", () => {
+    expect(resolveMemberId(members, 999)).toBeNull();
+  });
+});
+
+describe("isMemberInRefs", () => {
+  it("returns true when the member's id is in the refs", () => {
+    expect(isMemberInRefs(members[1], [11, 999])).toBe(true);
+  });
+
+  it("returns true when the member's adalo_id is in the refs (legacy entries)", () => {
+    expect(isMemberInRefs(members[0], ["555"])).toBe(true);
+  });
+
+  it("returns false when neither id nor adalo_id is in the refs", () => {
+    expect(isMemberInRefs(members[1], [999])).toBe(false);
+  });
+
+  it("returns false for an empty refs list", () => {
+    expect(isMemberInRefs(members[0], [])).toBe(false);
   });
 });
 
