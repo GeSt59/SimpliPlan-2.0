@@ -1,8 +1,8 @@
 # PROJ-11: Teilnehmer-Übersicht (Admin)
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-15
-**Last Updated:** 2026-07-15 (QA abgeschlossen: 13/13 AC bestanden, 0 Bugs, production-ready)
+**Last Updated:** 2026-07-15 (deployed to production)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Zugriff auf den eigenen Verein beschränken
@@ -241,4 +241,14 @@ Keine. Alle 13 Akzeptanzkriterien, die relevanten Edge Cases sowie der Security-
 - **Recommendation:** Deploy möglich.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-15
+**Production URL:** https://simpliplan.toolies.eu/activities (Übersicht mit Admin-Aktionen: `https://simpliplan.toolies.eu/activities/[id]/uebersicht`)
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei jedem Push auf `main`, `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe PROJ-4).
+
+- Pre-Deployment-Checks: `npm run build` sauber, QA Approved (13/13 AC, 0 Bugs), keine DB-Migration nötig (nutzt bestehende PROJ-9/10-Infrastruktur), kein neuer Eintrag in `.env.local.example` nötig, Diff auf Secrets geprüft (keiner gefunden). `npm run lint` weiterhin am vorbestehenden, projektunabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- Commit `test(PROJ-11): ...` (letzter von 6 Commits: Spec, Architecture, Frontend, ein Sortier-Fix, Backend, QA) gepusht nach `main`. `.claude/settings.json`, die beiden PII-Referenzscreenshots sowie die weiterhin unfertigen, nicht mit PROJ-11 zusammenhängenden Layout-Änderungen an anderen Seiten blieben bewusst ungetrackt/uncommitted
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Run [`29452166292`](https://github.com/GeSt59/SimpliPlan-2.0/actions/runs/29452166292) — `completed` / `success`
+- Tag `v1.9.0-PROJ-11` erstellt und gepusht
+- Post-Deployment-Verifikation (read-only, per Playwright gegen die echte Domain): `/`, `/activities`, `/activities/1/uebersicht` liefern HTTP 200; unauthentifizierter Zugriff auf die Übersicht-Route redirected korrekt zu "/"; unauthentifizierter POST an `/api/einstellungen/1/teilnehmer` liefert 401; keine Browser-Konsolenfehler auf der Startseite
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-11, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3–10/15
