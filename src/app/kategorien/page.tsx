@@ -40,6 +40,11 @@ import {
 const PICTURE_BUCKET = "adalo-media";
 const MAX_PICTURE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_PICTURE_TYPES = ["image/png", "image/jpeg", "image/svg+xml"];
+const PICTURE_EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/svg+xml": "svg",
+};
 const NAME_MAX_LENGTH = 50;
 
 type Kategorie = {
@@ -212,7 +217,11 @@ export default function KategorienPage() {
       let newPictureUrl = pictureUrl;
 
       if (pictureFile) {
-        const path = `kategorien/${vereinId}-${Date.now()}-${pictureFile.name}`;
+        // Rohe Original-Dateinamen (z.B. mit Umlauten) können vom Storage-Backend
+        // als ungültiger Objekt-Key abgelehnt werden (400) - daher wird der Pfad
+        // ausschließlich aus geprüften, sicheren Bestandteilen gebaut.
+        const extension = PICTURE_EXTENSIONS[pictureFile.type] ?? "bin";
+        const path = `kategorien/${vereinId}-${Date.now()}.${extension}`;
         const { error: uploadError } = await supabase.storage
           .from(PICTURE_BUCKET)
           .upload(path, pictureFile, { upsert: true, contentType: pictureFile.type });
