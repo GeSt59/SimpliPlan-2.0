@@ -1,8 +1,8 @@
 # PROJ-11: Teilnehmer-Übersicht (Admin)
 
-## Status: Planned
+## Status: Architected
 **Created:** 2026-07-15
-**Last Updated:** 2026-07-15
+**Last Updated:** 2026-07-15 (Tech Design abgeschlossen)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Zugriff auf den eigenen Verein beschränken
@@ -83,12 +83,63 @@ Keine offenen Fragen aus dem Interview — alle Kernentscheidungen wurden getrof
 <!-- Added by /architecture -->
 | Decision | Rationale | Date |
 |----------|-----------|------|
+| Neuer, getrennter Server-Endpunkt für Admin-Teilnehmerverwaltung statt Erweiterung des bestehenden PROJ-10-Selbst-Anmeldung-Endpunkts | Nutzerentscheidung im Interview; hält die einfache Sicherheitsgarantie des bestehenden Endpunkts ("nur eigene ID") unangetastet, statt zwei Berechtigungsmodelle in einer Funktion zu mischen. Gleiches Muster wie der bereits bestehende dedizierte `/api/mitglieder/[id]`-Admin-Endpunkt | 2026-07-15 |
+| Auswahlliste im "Hinzufügen"-Dialog nutzt die bestehende `mitglieder_namen`-View (PROJ-10) und filtert clientseitig gegen die bereits geladene `eingeteilte_users`-Liste | Keine neue Datenbank-Abfrage nötig; die View wurde in PROJ-10 bereits genau für die verein-beschränkte Namensauflösung gebaut | 2026-07-15 |
+| Druckansicht als CSS-Print-Stylesheet auf der bestehenden Übersicht-Seite, keine eigene Route/Komponente | Setzt die Spec-Entscheidung um (kein eigenständiger Export); deutlich weniger Aufwand als eine zweite gepflegte Ansicht derselben Daten | 2026-07-15 |
+| Keine zusätzliche Datumsprüfung für die neuen Admin-Elemente auf der Übersicht-Seite | Die Seite ist bereits unabhängig vom Activity-Datum erreichbar (PROJ-10-Korrektur über das Archiv); Admin-Korrekturen sollen laut Spec explizit auch für vergangene Activities funktionieren | 2026-07-15 |
+| Auswahlliste nutzt die bereits installierte shadcn-`command`-Komponente, Bestätigungsdialog die bereits installierte `alert-dialog`-Komponente | Keine neuen Pakete nötig, konsistent mit dem bereits im Projekt etablierten Lösch-Bestätigungsmuster (PROJ-8/9) | 2026-07-15 |
 
 ---
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### A) Component Structure
+
+```
+Übersicht-Seite "/activities/[id]/uebersicht" (PROJ-10, ERWEITERT)
+├── Zugriffsprüfung unverändert (jeder eingeloggte Nutzer des eigenen Vereins)
+├── NEU: "Drucken"-Button (nur für Admins sichtbar) → öffnet den Browser-
+│   Druckdialog; ein Druck-Stylesheet blendet Navigation, Buttons und
+│   Status-Icons aus, Zeitbereich-Label/Rolle/kommen/benötigt/Namen bleiben
+├── Je Zeitbereich-Zeile (nur für Admins zusätzlich sichtbar):
+│   ├── NEU: "Entfernen"-Icon neben jedem Namen in der Namensliste
+│   │   → öffnet Bestätigungsdialog → nach Bestätigung: Mitglied entfernt
+│   └── NEU: Button "Mitglied hinzufügen"
+│       → öffnet eine durchsuchbare Auswahlliste (bereits zugesagte
+│         Mitglieder sind ausgeblendet; leerer Vereinsbestand → Leerzustand)
+│       → Auswahl trägt das Mitglied sofort ein, kein weiterer Klick nötig
+└── Für Mitglieder (kein Admin): unverändert reine Lese-Ansicht aus PROJ-10,
+    keines der drei neuen Elemente sichtbar
+
+Neuer Server-Endpunkt "Zeitbereich-Teilnehmer verwalten" (NEU, kein UI)
+└── Getrennt vom bestehenden Selbst-Anmeldung-Endpunkt aus PROJ-10 (der bleibt
+    unverändert: akzeptiert nie eine fremde Mitglieds-ID). Der neue Endpunkt:
+    Prüft zuerst, ob der Aufrufer wirklich Admin des Vereins ist, zu dem der
+    Zeitbereich gehört. Erst danach akzeptiert er eine im Request angegebene
+    Ziel-Mitglieds-ID und trägt genau diese ein oder aus — unabhängig davon,
+    ob es sich um den Admin selbst oder ein beliebiges anderes Mitglied des
+    eigenen Vereins handelt. Kein Zugriff auf Zeitbereiche fremder Vereine.
+```
+
+### B) Data Model (fachlich, kein Code)
+
+- Keine neue Tabelle, keine neue Spalte. Nutzt weiterhin `einstellungen.eingeteilte_users` (PROJ-9/10) sowie die bereits bestehende `mitglieder_namen`-View (PROJ-10) für die Namensauflösung in der Auswahlliste des "Hinzufügen"-Dialogs.
+- Die Auswahlliste im "Hinzufügen"-Dialog wird aus zwei bereits vorhandenen Datenquellen gebildet: allen Mitgliedern des Vereins (`mitglieder_namen`) minus der bereits im Zeitbereich eingetragenen (`eingeteilte_users`) — keine neue Abfrage-Logik auf Datenbankebene nötig, reine Differenzbildung.
+- Kein neues Feld zur Unterscheidung "Selbstanmeldung vs. Admin-Eintragung" (siehe Out of Scope) — beide Wege schreiben denselben `eingeteilte_users`-Eintrag.
+
+### C) Tech-Entscheidungen (Begründung für PM)
+
+- **Getrennter neuer Endpunkt statt Erweiterung des bestehenden Selbst-Anmeldung-Endpunkts**: Der PROJ-10-Endpunkt hat eine einfache, leicht nachvollziehbare Sicherheitsgarantie ("ändert ausschließlich die eigene ID, nie die eines anderen"). Würde man ihn um einen Admin-Zweig erweitern, hätte eine einzige Funktion zwei unterschiedliche Berechtigungsmodelle gleichzeitig zu prüfen — fehleranfälliger und schwerer zu überblicken als zwei kleine, jeweils einzweckige Endpunkte. Gleiches Muster wie bereits an anderer Stelle im Projekt: `/api/mitglieder/[id]` ist ebenfalls ein dedizierter Admin-Endpunkt, getrennt von den Selbstbedienungs-Pfaden.
+- **Kein neues UI-Paket für die Auswahlliste**: Die shadcn-Komponente `command` (durchsuchbare Auswahlliste) ist bereits im Projekt installiert und wird direkt wiederverwendet.
+- **Druckansicht über CSS statt eigener Route/Komponente**: Ein Druck-spezifisches Stylesheet auf der bestehenden Seite blendet nur die interaktiven/App-spezifischen Elemente aus — deutlich einfacher als eine zweite, gepflegte Ansicht derselben Daten.
+- **Keine Datumsgrenze für Admin-Aktionen**: Anders als die Selbstanmeldung (PROJ-10) prüft die Übersicht-Seite für die neuen Admin-Elemente nicht, ob die Activity in der Vergangenheit liegt — sie war ohnehin schon über das Archiv erreichbar (PROJ-10-Korrektur), Admin-Korrekturen sollen dort laut Spec ausdrücklich weiter möglich sein.
+- **Wiederverwendung von `mitglieder_namen` statt einer neuen View**: Die View wurde in PROJ-10 bereits für genau diesen Zweck (Namensauflösung, auf den eigenen Verein beschränkt) gebaut und deckt exakt den Bedarf der neuen Auswahlliste ab.
+
+### D) Dependencies
+
+- Keine neuen Pakete: `@supabase/supabase-js`, `zod`, `shadcn/ui` (`command`, `alert-dialog` — beide bereits installiert)
+- Der neue Endpunkt nutzt dieselbe bereits vorhandene Infrastruktur wie `/api/mitglieder/[id]` und `/api/einstellungen/[id]/anmeldung` (Zugriffsprüfung anhand der Anfrage + privilegierter Datenbankzugriff für die eigentliche Änderung)
 
 ## QA Test Results
 _To be added by /qa_
