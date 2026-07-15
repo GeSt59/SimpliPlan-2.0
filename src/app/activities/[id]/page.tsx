@@ -162,7 +162,9 @@ export default function ActivityDetailPage() {
 
     const [{ data: roleData }, { data: memberData }] = await Promise.all([
       supabase.from("rollen").select("id, adalo_id, name").contains("vereine", [vId]),
-      supabase.from("users").select("id, adalo_id, vorname, nachname").contains("verein", [vId]),
+      // Nutzt die eingeschränkte mitglieder_namen-View (nur id/adalo_id/vorname/nachname),
+      // da die zugrunde liegende users-Tabelle für normale Mitglieder admin-only ist (PROJ-10 Backend).
+      supabase.from("mitglieder_namen").select("id, adalo_id, vorname, nachname").contains("verein", [vId]),
     ]);
 
     const loadedMembers = memberData ?? [];

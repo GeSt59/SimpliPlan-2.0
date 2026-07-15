@@ -2,7 +2,7 @@
 
 ## Status: In Progress
 **Created:** 2026-07-15
-**Last Updated:** 2026-07-15 (Frontend implementiert, Backend-Blocker für Namensauflösung erwartet)
+**Last Updated:** 2026-07-15 (Backend fertig: mitglieder_namen-View + Selbst-Anmeldung end-to-end verifiziert)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Zugriff auf den eigenen Verein beschränken
@@ -214,6 +214,32 @@ Neuer Server-Endpunkt "Zeitbereich-Anmeldung" (NEU, kein UI)
 - Die Auto-Anmeldung bei "automatisch angemeldet"-Rollen (PROJ-9-Zeitbereiche-Seite) wurde nicht live mit echten Mitgliedsdaten getestet
 
 **Verifiziert:** `npm run build` läuft sauber durch (neue Routen `/activities/[id]/uebersicht` und `/api/einstellungen/[id]/anmeldung` kompilieren fehlerfrei). `npm test` weiterhin 55/55, keine Regression. `npm run lint` weiterhin am vorbestehenden, projektunabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+
+## Backend Implementation Notes
+
+**Sicherheitsproblem vor der Umsetzung entdeckt und mit dem User geklärt:** Die im Tech Design vorgesehene einfache Lösung ("jeder Vereins-Nutzer darf `users`-Zeilen des eigenen Vereins lesen") hätte über RLS nicht nur Vorname/Nachname freigegeben, sondern auch E-Mail, Geburtstag, Mitgliedsnummer und Admin-Status aller Vereinskollegen — abrufbar per direktem REST-Call, nicht nur über die App-UI (RLS schützt ganze Zeilen, keine einzelnen Spalten). Nach Rücksprache mit dem User (explizite Freigabe der konkreten Migration) stattdessen umgesetzt:
+
+**Gebaut:** Migration `proj10_mitglieder_namen_view` (per `apply_migration`, mit expliziter User-Freigabe angewendet):
+- Neue Funktion `current_user_verein()` (SECURITY DEFINER, analog zur bereits bestehenden `current_user_admin_verein()`, aber ohne `admin = true`-Filter) — gibt das eigene `verein`-Array des Aufrufers zurück
+- Neue View `public.mitglieder_namen`: `SELECT id, adalo_id, vorname, nachname, verein FROM users WHERE verein && current_user_verein()` — exponiert bewusst nur nicht-sensible Spalten; filtert sich selbst über `current_user_verein()` auf den eigenen Verein, sodass kein Mitglied fremde Vereine oder sensible Spalten (E-Mail, Geburtstag, Mitgliedsnummer, Admin-Status) einsehen kann
+- `GRANT SELECT ON mitglieder_namen TO authenticated`
+- Die zugrunde liegende `users`-Tabelle selbst bleibt unverändert (weiterhin nur `users_select_own` / `users_select_own_verein_admin` / `users_select_su`)
+- `src/app/activities/[id]/page.tsx` (GEÄNDERT) — Namensauflösung liest jetzt `mitglieder_namen` statt `users`
+
+**Erwartete Linter-Meldung, kein Bug:** `get_advisors` (security) meldet `security_definer_view` für `mitglieder_namen` als ERROR. Das ist der beabsichtigte Mechanismus (die View muss die admin-only-Policy von `users` gezielt umgehen können, um Namen anderer Vereinsmitglieder zu zeigen) — abgesichert durch die selbst eingebaute `WHERE verein && current_user_verein()`-Einschränkung in der View-Definition, die den echten `auth.uid()` des Aufrufers auswertet (nicht den View-Besitzer). Ebenfalls vorbestehend (nicht neu durch PROJ-10 verursacht): `current_user_verein()` ist wie die bereits existierende `current_user_admin_verein()` auch von `anon` aufrufbar (WARN) — folgenlos, da bei fehlendem `auth.uid()` nur ein leeres Array zurückkommt.
+
+**Nebenfund (nicht PROJ-10-Scope):** `vereine.adalo_id` ist weiterhin `NOT NULL` ohne Default (gleiches Migrationsmuster wie bei `activities`/`categories`/`rollen`/`einstellungen` vor deren jeweiligem Fix) — betrifft PROJ-10 nicht (kein Feature-Code legt neue Vereine an), nur beim Aufbau isolierter Testdaten aufgefallen. Für ein künftiges Feature rund um Vereins-Anlage vormerken.
+
+**Manuell verifiziert** (per Skript mit echten JWTs gegen die echte Supabase-Instanz und den laufenden Dev-Server, mit isolierten, danach vollständig entfernten Testdaten — 2 Test-Vereine, 2 Test-Mitglieder + 1 Test-Admin in Verein A, 1 Test-Mitglied in Verein B, 1 echter Zeitbereich mit `ben=2`, 1 Stub-Zeitbereich mit `ben=0`):
+- **`mitglieder_namen`-View:** Mitglied sieht alle 3 Namen des eigenen Vereins; sieht 0 Zeilen für den fremden Verein; `select email` auf der View schlägt fehl ("column does not exist") — die Spalte ist auf DB-Ebene gar nicht vorhanden, kein Zugriff über Umwege möglich
+- **Selbst-Anmeldung (`POST /api/einstellungen/[id]/anmeldung`):** `anmelden` trägt die eigene ID ein (200); erneutes `anmelden` erzeugt keinen Duplikat-Eintrag (Idempotenz); `abmelden` entfernt ausschließlich die eigene ID, ein zweites zugesagtes Mitglied bleibt unangetastet
+- **Cross-Tenant-Schutz:** Mitglied aus Verein B erhält 403 beim Versuch, einen Zeitbereich von Verein A zu ändern; Datenbank-Zustand danach per Service-Role-Abfrage bestätigt unverändert
+- **Nicht-anmeldefähiger Stub-Zeitbereich** (`ben=0`, keine Rolle): Anfrage liefert 400
+- **Unauthentifizierte Anfrage:** liefert 401
+
+**Nicht separat getestet:** Die Auto-Anmeldung bei "automatisch angemeldet"-Rollen (clientseitige Logik in der PROJ-9-Zeitbereiche-Seite) — nutzt ausschließlich bereits verifizierte Admin-Berechtigungen (volles CRUD auf `einstellungen`, Lesen von `users` als Admin), kein neuer RLS-Pfad, daher nicht isoliert erneut getestet.
+
+**Verifiziert:** `npm run build` weiterhin sauber, `npm test` weiterhin 55/55.
 
 ## QA Test Results
 _To be added by /qa_
