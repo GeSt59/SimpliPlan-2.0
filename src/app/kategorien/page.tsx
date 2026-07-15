@@ -360,7 +360,7 @@ export default function KategorienPage() {
                     <img
                       src={kategorie.picture_url}
                       alt={kategorie.name}
-                      className="h-auto w-[150px] shrink-0 rounded-md border object-contain"
+                      className="h-auto w-[80px] shrink-0 rounded-md border object-contain"
                     />
                   ) : (
                     <div className="h-10 w-10 shrink-0 rounded-md border bg-muted" />
