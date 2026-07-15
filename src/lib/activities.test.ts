@@ -4,8 +4,12 @@ import {
   resolveCategoryPicture,
   formatActivityDateTime,
   formatActivityRange,
+  findRole,
+  resolveRoleName,
+  buildDefaultZeitbereichSlots,
+  normalizeTimeValue,
 } from "./activities";
-import type { ActivityCategory } from "./activities";
+import type { ActivityCategory, ZeitbereichRole } from "./activities";
 
 const categories: ActivityCategory[] = [
   { id: 1, adalo_id: null, name: "Stammtisch", picture_url: "https://example.com/stammtisch.jpg" },
@@ -77,5 +81,78 @@ describe("formatActivityRange", () => {
   it("returns an empty string when there is no start", () => {
     const end = new Date(2026, 5, 26, 21, 59).toISOString();
     expect(formatActivityRange(null, end)).toBe("");
+  });
+});
+
+const roles: ZeitbereichRole[] = [
+  { id: 40, adalo_id: 95, name: "Mitglieder" },
+  { id: 41, adalo_id: null, name: "Begleitung" },
+];
+
+describe("findRole / resolveRoleName", () => {
+  it("resolves by Supabase id (newly created Zeitbereiche)", () => {
+    expect(resolveRoleName(roles, [41])).toBe("Begleitung");
+  });
+
+  it("falls back to adalo_id (legacy migrated Zeitbereiche)", () => {
+    expect(resolveRoleName(roles, ["95"])).toBe("Mitglieder");
+  });
+
+  it("returns a placeholder when no role is set", () => {
+    expect(resolveRoleName(roles, null)).toBe("Keine Rolle");
+    expect(resolveRoleName(roles, [])).toBe("Keine Rolle");
+  });
+
+  it("returns the same placeholder when the referenced role no longer exists", () => {
+    expect(resolveRoleName(roles, [999])).toBe("Keine Rolle");
+  });
+
+  it("findRole returns the full role object (needed to resolve its current Supabase id for the Select value)", () => {
+    expect(findRole(roles, ["95"])?.id).toBe(40);
+  });
+});
+
+describe("buildDefaultZeitbereichSlots", () => {
+  const slots = buildDefaultZeitbereichSlots();
+
+  it("returns exactly 17 slots (16 hourly slots 8-9..23-24, plus the midnight slot 24-01)", () => {
+    expect(slots).toHaveLength(17);
+  });
+
+  it("starts at 8-9 with von=08:00/bis=09:00", () => {
+    expect(slots[0]).toEqual({ label: "8-9", von: "08:00", bis: "09:00" });
+  });
+
+  it("ends at 24-01 with von=00:00/bis=01:00 (midnight, native <input type=time> can't hold '24:00')", () => {
+    expect(slots[16]).toEqual({ label: "24-01", von: "00:00", bis: "01:00" });
+  });
+
+  it("the 23-24 slot's bis is normalized to 00:00, not the invalid '24:00'", () => {
+    expect(slots[15]).toEqual({ label: "23-24", von: "23:00", bis: "00:00" });
+  });
+
+  it("labels are sequential and unique", () => {
+    const labels = slots.map((s) => s.label);
+    expect(new Set(labels).size).toBe(17);
+  });
+});
+
+describe("normalizeTimeValue", () => {
+  it("passes through normal HH:MM values unchanged", () => {
+    expect(normalizeTimeValue("18:00")).toBe("18:00");
+    expect(normalizeTimeValue("09:30")).toBe("09:30");
+  });
+
+  it("normalizes '24:00' to '00:00' (native <input type=time> rejects '24:00' as invalid)", () => {
+    expect(normalizeTimeValue("24:00")).toBe("00:00");
+  });
+
+  it("returns an empty string for null/empty input", () => {
+    expect(normalizeTimeValue(null)).toBe("");
+    expect(normalizeTimeValue("")).toBe("");
+  });
+
+  it("leaves non-time strings untouched instead of throwing", () => {
+    expect(normalizeTimeValue("nicht eine Uhrzeit")).toBe("nicht eine Uhrzeit");
   });
 });

@@ -9,6 +9,7 @@ import { de } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { buildDefaultZeitbereichSlots } from "@/lib/activities";
 import type { ActivityCategory } from "@/lib/activities";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -78,13 +79,14 @@ type ActivityFormValues = z.infer<typeof activityFormSchema>;
 
 export type ActivityRecord = {
   id: number;
+  adalo_id?: number | null;
   name: string | null;
   category: (string | number)[] | null;
   du_z: string | null;
   du_zbis: string | null;
   ort: string | null;
   beschreibung: string | null;
-  einteilungens: (string | number)[] | null;
+  einteilungens?: (string | number)[] | null;
 };
 
 type ActivityFormDialogProps = {
@@ -239,6 +241,18 @@ export function ActivityFormDialog({
           setSaving(false);
           return;
         }
+
+        // Automatische Standard-Zeitbereiche (PROJ-9); schlägt das fehl, bleibt die
+        // Activity trotzdem gespeichert - der Admin kann Zeitbereiche manuell nachlegen.
+        await supabase.from("einstellungen").insert(
+          buildDefaultZeitbereichSlots().map((slot) => ({
+            zeitbereich: slot.label,
+            von: slot.von,
+            bis: slot.bis,
+            ben: 0,
+            activity: [inserted.id],
+          }))
+        );
 
         onOpenChange(false);
         await onSaved(inserted.id);

@@ -242,7 +242,7 @@ export default function RollenPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background pb-28">
+    <div className="flex min-h-screen flex-col bg-background pb-40">
       <header className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-4 text-white">
         <Link href="/" aria-label="Zurück">
           <ArrowLeft className="h-6 w-6" />
@@ -312,7 +312,7 @@ export default function RollenPage() {
         type="button"
         onClick={handleAddRow}
         aria-label="Neue Rolle"
-        className="fixed bottom-8 left-1/2 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
+        className="fixed bottom-24 left-1/2 z-40 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
       >
         <Plus className="h-7 w-7" />
       </button>

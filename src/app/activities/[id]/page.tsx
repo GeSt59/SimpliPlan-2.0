@@ -198,25 +198,20 @@ export default function ActivityDetailPage() {
 
             <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4">
               <p className="text-sm font-semibold text-foreground">Zeitbereiche</p>
-              <p className="text-sm text-muted-foreground">
-                Zeitbereiche sind noch nicht verfügbar und folgen mit einem späteren Update.
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled
-                  title="Verfügbar, sobald Zeitbereiche implementiert sind"
-                  className="w-fit font-semibold uppercase tracking-wide"
-                >
-                  Zeitbereich hinzufügen
-                </Button>
-                {isAdmin && (
+              {isAdmin ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button asChild variant="outline" className="w-fit font-semibold uppercase tracking-wide">
+                    <Link href={`/activities/${activity.id}/zeitbereiche`}>Zeitbereich hinzufügen</Link>
+                  </Button>
                   <Link href="/rollen" className="text-sm font-medium text-brand-blue underline">
                     Rollen verwalten
                   </Link>
-                )}
-              </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Die Anmeldung zu Zeitbereichen ist noch nicht verfügbar und folgt mit einem späteren Update.
+                </p>
+              )}
             </div>
           </>
         )}

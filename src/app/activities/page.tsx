@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const ACTIVITY_COLUMNS = "id, name, category, du_z, du_zbis, ort, beschreibung, einteilungens";
+const ACTIVITY_COLUMNS = "id, adalo_id, name, category, du_z, du_zbis, ort, beschreibung";
 
 export default function ActivitiesPage() {
   return (
@@ -54,6 +54,8 @@ function ActivitiesPageContent() {
   const [editingActivity, setEditingActivity] = useState<ActivityRecord | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<ActivityRecord | null>(null);
+  const [deleteChecking, setDeleteChecking] = useState(false);
+  const [hasEinteilungen, setHasEinteilungen] = useState(false);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -168,15 +170,48 @@ function ActivitiesPageContent() {
     }
   }
 
-  function openDeleteDialog(activity: ActivityRecord) {
+  async function openDeleteDialog(activity: ActivityRecord) {
     setDeleteTarget(activity);
     setDeleteError(null);
+    setDeleteChecking(true);
+    setHasEinteilungen(false);
+
+    // Prüft live gegen die einstellungen-Zeilen dieser Activity, ob mindestens eine
+    // bereits eingeteilte Mitglieder hat. activities.einteilungens selbst wird von
+    // PROJ-9 nicht gepflegt (nur bei der Adalo-Migration befüllt) und ist daher als
+    // Quelle nicht mehr verlässlich, sobald Zeitbereiche über PROJ-9 entstehen.
+    const activityFilters = [`activity.cs.{${activity.id}}`];
+    if (activity.adalo_id != null) {
+      activityFilters.push(`activity.cs.{${activity.adalo_id}}`);
+    }
+
+    const { data, error } = await supabase
+      .from("einstellungen")
+      .select("eingeteilte_users")
+      .or(activityFilters.join(","));
+
+    if (error) {
+      setDeleteError("Verwendung konnte nicht geprüft werden. Bitte versuche es erneut.");
+      setDeleteChecking(false);
+      return;
+    }
+
+    setHasEinteilungen(!!data?.some((row) => (row.eingeteilte_users?.length ?? 0) > 0));
+    setDeleteChecking(false);
   }
 
   async function confirmDelete() {
     if (!deleteTarget || !vereinId) return;
     setDeleteSaving(true);
     setDeleteError(null);
+
+    // Cascade: zugehörige Zeitbereiche (PROJ-9) zuerst entfernen, damit keine verwaisten
+    // einstellungen-Zeilen zurückbleiben (activity-Spalte referenziert id ODER adalo_id).
+    const activityFilters = [`activity.cs.{${deleteTarget.id}}`];
+    if (deleteTarget.adalo_id != null) {
+      activityFilters.push(`activity.cs.{${deleteTarget.adalo_id}}`);
+    }
+    await supabase.from("einstellungen").delete().or(activityFilters.join(","));
 
     const { error } = await supabase.from("activities").delete().eq("id", deleteTarget.id);
 
@@ -198,8 +233,6 @@ function ActivitiesPageContent() {
   if (!allowed) {
     return null;
   }
-
-  const hasEinteilungen = (deleteTarget?.einteilungens?.length ?? 0) > 0;
 
   return (
     <main className="min-h-screen bg-background pb-40">
@@ -261,7 +294,7 @@ function ActivitiesPageContent() {
                       <button
                         type="button"
                         aria-label="Activity löschen"
-                        onClick={() => openDeleteDialog(a)}
+                        onClick={() => void openDeleteDialog(a)}
                         className="text-brand-gold hover:opacity-80"
                       >
                         <Trash2 className="h-5 w-5" />
@@ -327,16 +360,18 @@ function ActivitiesPageContent() {
               {hasEinteilungen ? "Activity hat bereits eingeteilte Helfer" : "Activity löschen?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteError
-                ? deleteError
-                : hasEinteilungen
-                  ? `„${deleteTarget?.name}" hat bereits eingeteilte Helfer. Beim Löschen gehen diese Zuordnungen unwiderruflich verloren.`
-                  : `„${deleteTarget?.name}" wird unwiderruflich gelöscht.`}
+              {deleteChecking
+                ? "Verwendung wird geprüft..."
+                : deleteError
+                  ? deleteError
+                  : hasEinteilungen
+                    ? `„${deleteTarget?.name}" hat bereits eingeteilte Helfer. Beim Löschen gehen diese Zuordnungen unwiderruflich verloren.`
+                    : `„${deleteTarget?.name}" wird unwiderruflich gelöscht.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction disabled={deleteSaving} onClick={() => void confirmDelete()}>
+            <AlertDialogAction disabled={deleteSaving || deleteChecking} onClick={() => void confirmDelete()}>
               {deleteSaving ? "Wird gelöscht..." : hasEinteilungen ? "Trotzdem löschen" : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>
