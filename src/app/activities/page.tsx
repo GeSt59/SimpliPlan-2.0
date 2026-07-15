@@ -1,14 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { List, Pencil, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { resolveCategoryPicture, formatActivityDateTime, startOfTodayIso } from "@/lib/activities";
 import type { ActivityCategory } from "@/lib/activities";
-import { ActivityFormDialog } from "@/components/activity-form-dialog";
-import type { ActivityRecord } from "@/components/activity-form-dialog";
+import type { ActivityRecord } from "@/lib/activity-form-schema";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,22 +25,12 @@ import {
 const ACTIVITY_COLUMNS = "id, adalo_id, name, category, du_z, du_zbis, ort, beschreibung";
 
 export default function ActivitiesPage() {
-  return (
-    <Suspense fallback={<main className="min-h-screen bg-background" />}>
-      <ActivitiesPageContent />
-    </Suspense>
-  );
-}
-
-function ActivitiesPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [vereinId, setVereinId] = useState<number | null>(null);
-  const [ownUserId, setOwnUserId] = useState<number | null>(null);
 
   const [categories, setCategories] = useState<ActivityCategory[]>([]);
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
@@ -49,9 +38,6 @@ function ActivitiesPageContent() {
   const [listError, setListError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingActivity, setEditingActivity] = useState<ActivityRecord | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<ActivityRecord | null>(null);
   const [deleteChecking, setDeleteChecking] = useState(false);
@@ -73,7 +59,7 @@ function ActivitiesPageContent() {
 
       const { data: userRow } = await supabase
         .from("users")
-        .select("id, admin, verein")
+        .select("admin, verein")
         .eq("auth_user_id", session.user.id)
         .maybeSingle();
 
@@ -87,7 +73,6 @@ function ActivitiesPageContent() {
       }
 
       setVereinId(vId);
-      setOwnUserId(userRow?.id ?? null);
       setIsAdmin(!!userRow?.admin);
       setAllowed(true);
       setChecking(false);
@@ -98,13 +83,6 @@ function ActivitiesPageContent() {
       active = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (allowed && isAdmin && searchParams.get("new") === "1") {
-      openCreateDialog();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowed, isAdmin, searchParams]);
 
   useEffect(() => {
     if (!vereinId) return;
@@ -150,25 +128,6 @@ function ActivitiesPageContent() {
     const haystack = `${a.name ?? ""} ${a.ort ?? ""} ${a.beschreibung ?? ""}`.toLowerCase();
     return haystack.includes(term);
   });
-
-  function openCreateDialog() {
-    setEditingActivity(null);
-    setDialogOpen(true);
-  }
-
-  function openEditDialog(activity: ActivityRecord) {
-    setEditingActivity(activity);
-    setDialogOpen(true);
-  }
-
-  async function handleSaved(savedId: number) {
-    if (!vereinId) return;
-    const wasCreate = editingActivity === null;
-    await loadActivities(vereinId);
-    if (wasCreate) {
-      router.push(`/activities/${savedId}`);
-    }
-  }
 
   async function openDeleteDialog(activity: ActivityRecord) {
     setDeleteTarget(activity);
@@ -257,8 +216,8 @@ function ActivitiesPageContent() {
           <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed p-10 text-center">
             <p className="text-sm text-muted-foreground">Noch keine kommenden Activities vorhanden.</p>
             {isAdmin && (
-              <Button onClick={openCreateDialog} variant="outline" className="font-semibold uppercase tracking-wide">
-                Neue Activity anlegen
+              <Button asChild variant="outline" className="font-semibold uppercase tracking-wide">
+                <Link href="/activities/neu">Neue Activity anlegen</Link>
               </Button>
             )}
           </div>
@@ -304,7 +263,7 @@ function ActivitiesPageContent() {
                       <button
                         type="button"
                         aria-label="Activity bearbeiten"
-                        onClick={() => openEditDialog(a)}
+                        onClick={() => router.push(`/activities/${a.id}/bearbeiten`)}
                         className="text-brand-blue hover:opacity-80"
                       >
                         <Pencil className="h-5 w-5" />
@@ -331,26 +290,13 @@ function ActivitiesPageContent() {
       </div>
 
       {isAdmin && (
-        <button
-          type="button"
-          onClick={openCreateDialog}
+        <Link
+          href="/activities/neu"
           aria-label="Neue Activity anlegen"
           className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-gold text-black shadow-lg hover:bg-brand-gold/90"
         >
           <Plus className="h-6 w-6" />
-        </button>
-      )}
-
-      {vereinId && (
-        <ActivityFormDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          vereinId={vereinId}
-          createdByUserId={ownUserId}
-          categories={categories}
-          activity={editingActivity}
-          onSaved={handleSaved}
-        />
+        </Link>
       )}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>

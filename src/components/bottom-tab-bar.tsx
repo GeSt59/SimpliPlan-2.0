@@ -118,9 +118,9 @@ export function BottomTabBar() {
           {
             key: "activity",
             label: labels.tab3,
-            href: "/activities?new=1",
+            href: "/activities/neu",
             icon: CirclePlus,
-            isActive: () => false,
+            isActive: (p: string) => p === "/activities/neu",
           },
           {
             key: "kategorien",

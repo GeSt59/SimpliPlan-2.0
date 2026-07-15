@@ -7,7 +7,7 @@ import { List } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { resolveCategoryPicture, formatActivityDateTime, startOfTodayIso } from "@/lib/activities";
 import type { ActivityCategory } from "@/lib/activities";
-import type { ActivityRecord } from "@/components/activity-form-dialog";
+import type { ActivityRecord } from "@/lib/activity-form-schema";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

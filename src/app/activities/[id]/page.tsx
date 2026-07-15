@@ -7,8 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { resolveCategoryName, resolveCategoryPicture, formatActivityRange } from "@/lib/activities";
 import type { ActivityCategory } from "@/lib/activities";
-import { ActivityFormDialog } from "@/components/activity-form-dialog";
-import type { ActivityRecord } from "@/components/activity-form-dialog";
+import type { ActivityRecord } from "@/lib/activity-form-schema";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,8 +28,6 @@ export default function ActivityDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
-
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -187,11 +184,11 @@ export default function ActivityDetailPage() {
 
               {isAdmin && (
                 <Button
-                  onClick={() => setDialogOpen(true)}
+                  asChild
                   variant="outline"
-                  className="mt-2 font-semibold uppercase tracking-wide"
+                  className="mt-2 w-fit font-semibold uppercase tracking-wide"
                 >
-                  Bearbeiten
+                  <Link href={`/activities/${activity.id}/bearbeiten`}>Bearbeiten</Link>
                 </Button>
               )}
             </div>
@@ -220,18 +217,6 @@ export default function ActivityDetailPage() {
           <Link href="/activities">Zurück zu Activities</Link>
         </Button>
       </div>
-
-      {activity && vereinId && (
-        <ActivityFormDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          vereinId={vereinId}
-          createdByUserId={null}
-          categories={categories}
-          activity={activity}
-          onSaved={loadActivity}
-        />
-      )}
     </main>
   );
 }
