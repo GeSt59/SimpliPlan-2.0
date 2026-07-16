@@ -1,8 +1,8 @@
 # PROJ-12: Profil-Verwaltung
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-16
-**Last Updated:** 2026-07-16
+**Last Updated:** 2026-07-17
 
 ## Dependencies
 - PROJ-3 (Authentifizierung) — für eingeloggten Nutzer-Kontext (`auth_user_id`), Passwort-Änderungsmechanismus (analog zur bestehenden Reset-Passwort-Seite)
@@ -308,4 +308,14 @@ Keine.
 - **Recommendation:** Deploy
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-17
+**Production URL:** https://simpliplan.toolies.eu/profil
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei jedem Push auf `main`, `npm run build` + PM2-Reload (`ecosystem.config.js`, Prozess "SimpliPlan"). Kein Vercel (siehe PROJ-4).
+
+- Pre-Deployment-Checks: `npm run build` sauber, QA Approved (14/14 AC, 0 Bugs), DB-Migration `proj12_profil_self_update_rls_and_guard` bereits in `/backend` angewendet, kein neuer Eintrag in `.env.local.example` nötig (keine neuen Env-Variablen), Diff auf Secrets geprüft (keine gefunden). `npm run lint` weiterhin am vorbestehenden, projektunabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- Commit `feat(PROJ-12): Implement Profil-Verwaltung (spec, architecture, frontend, backend, QA)` (konsolidierter Commit für alle Phasen, analog zu PROJ-6) gepusht nach `main`. `.claude/settings.json` sowie zwei nicht mit PROJ-12 zusammenhängende, bereits vorher lose im Repo liegende Dateien (`public/LC PP.jpg`, `public/Mitgliederverwaltung.jpg`) blieben bewusst ungetrackt/uncommitted
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Run [`29537775896`](https://github.com/GeSt59/SimpliPlan-2.0/actions/runs/29537775896) — `completed` / `success`
+- Tag `v1.10.0-PROJ-12` erstellt und gepusht
+- Post-Deployment-Verifikation (read-only, gegen die echte Domain): `/`, `/profil`, `/mitglieder` liefern HTTP 200; `PATCH /api/profil` ohne Authorization-Header liefert 401 (Route korrekt abgesichert); unauthentifizierter Zugriff auf `/profil` redirected per Playwright korrekt zu `/`; keine Browser-Konsolenfehler
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-12, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3–11/15
