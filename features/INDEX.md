@@ -26,11 +26,12 @@
 | PROJ-9 | Zeitbereiche CRUD | P0 | Deployed | PROJ-8, PROJ-6 | [PROJ-9](PROJ-9-zeitbereiche-crud.md) | 2026-07-08 |
 | PROJ-10 | Mitglied-Anmeldung zu Zeitbereichen | P0 | Deployed | PROJ-9 | [PROJ-10](PROJ-10-mitglied-anmeldung-zeitbereiche.md) | 2026-07-08 |
 | PROJ-11 | Teilnehmer-Übersicht (Admin) | P0 | Deployed | PROJ-9, PROJ-10 | [PROJ-11](PROJ-11-teilnehmer-uebersicht-admin.md) | 2026-07-08 |
-| PROJ-12 | Profil-Verwaltung | P0 | Roadmap | PROJ-3 | - | 2026-07-08 |
+| PROJ-12 | Profil-Verwaltung | P0 | Approved | PROJ-3, PROJ-7 | [PROJ-12](PROJ-12-profil-verwaltung.md) | 2026-07-08 |
 | PROJ-13 | Mitglieder-Ansicht/Suche | P0 | Roadmap | PROJ-7 | - | 2026-07-08 |
 | PROJ-14 | Kalender-Export (ICS, 1-Klick) | P0 | Roadmap | PROJ-10 | - | 2026-07-08 |
 | PROJ-15 | Bottom-Tab-Bar (Activities / Lions / Activity / Kategorien / Profil) | P0 | Deployed | PROJ-3, PROJ-4, PROJ-5, PROJ-6, PROJ-7, PROJ-8 | [PROJ-15](PROJ-15-bottom-tab-bar.md) | 2026-07-13 |
+| PROJ-16 | Meine Einteilungen (Mitglied-Übersicht eigener Zeitbereich-Zusagen) | P1 | Roadmap | PROJ-10 | - | 2026-07-16 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-16
+## Next Available ID: PROJ-17
