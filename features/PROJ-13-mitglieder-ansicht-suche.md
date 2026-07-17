@@ -1,8 +1,8 @@
 # PROJ-13: Mitglieder-Ansicht/Suche
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-17
-**Last Updated:** 2026-07-17 (QA)
+**Last Updated:** 2026-07-17 (Deploy)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Sichtbarkeit strikt auf den eigenen Verein beschränken
@@ -287,4 +287,23 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 - **Recommendation:** Deploy möglich; BUG-1 (Low) vor oder kurz nach dem Deployment beheben lassen, da günstig zu fixen und die Admin-UX kurz beeinträchtigt
 
 ## Deployment
-_To be added by /deploy_
+
+**Production URL:** https://simpliplan.toolies.eu/mitgliedersuche
+**Deployed:** 2026-07-17
+**Deploy-Mechanismus:** Push auf `main` → GitHub Actions (`.github/workflows/deploy.yml`) → SSH auf Hetzner, `git pull` + `npm ci` + `npm run build` + `pm2 reload` (kein Vercel — abweichend vom generischen Skript-Text)
+
+**Pre-Deployment-Checks:**
+- [x] `npm run build` lokal erfolgreich (inkl. TypeScript-Check)
+- [ ] `npm run lint` — **nicht ausführbar**: `next lint` existiert in Next.js 16 nicht mehr, und die vorhandene `.eslintrc.json` ist mit der installierten ESLint-9-Version inkompatibel (fehlende `eslint.config.js`). Vorbestehendes Tooling-Problem, unabhängig von PROJ-13, nicht behoben (außerhalb des Scopes dieses Features). TypeScript-Korrektheit ist über `npm run build` weiterhin abgedeckt
+- [x] QA freigegeben, keine offenen Critical/High-Bugs (siehe QA Test Results)
+- [x] Keine neuen Umgebungsvariablen nötig (kein neuer API-Endpoint, gleicher Anon-Key wie bestehend)
+- [x] Keine Secrets committet
+- [x] DB-Migration bereits in `/backend` direkt auf der Live-Datenbank angewendet (kein lokaler Migrations-Ordner in diesem Projekt, identisches Muster wie PROJ-1–12)
+- [x] Alle Commits gepusht (`f88c2b7` → `main`)
+
+**Post-Deployment-Verifikation:**
+- [x] `https://simpliplan.toolies.eu/mitgliedersuche` antwortet mit HTTP 200 (Route existierte vor diesem Deploy nicht — starker Beleg für erfolgreichen Rollout)
+- [x] Regressions-Check: `/`, `/mitglieder`, `/activities`, `/profil` weiterhin HTTP 200
+- [x] Echter End-to-End-Smoke-Test mit einem frischen, disposablen Mitglied-Testaccount direkt gegen Produktion (nicht nur localhost): Login → 3-Tab-Leiste (Activities/Lions/Profil) → Klick "Lions" → `/mitgliedersuche` → korrekter Titel → Leerzustand korrekt gerendert (isolierter Test-Verein) → **keine Browser-Konsolen-Fehler**. Testdaten danach vollständig gelöscht (verifiziert)
+
+**Git Tag:** `v1.11.0-PROJ-13`
