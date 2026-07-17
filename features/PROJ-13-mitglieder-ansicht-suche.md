@@ -166,6 +166,10 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 
 **Nicht end-to-end testbar in `/frontend`:** Die eigentliche Mitgliederliste (Karten/Liste mit mehreren Personen, Badges, Detail-Dialog) konnte erst nach der neuen RLS-Policy aus `/backend` mit echten Testdaten sichtbar geprüft werden — identisches Muster wie bei PROJ-7 (Backend-Contract zuerst dokumentiert, dann in `/backend` gebaut und verifiziert). Vollständige UI-E2E-Verifikation mit einem echten, eingeloggten Mitglied-Account folgt in `/qa`.
 
+### Nachtrag (2026-07-17, nach QA): BUG-1-Fix
+
+`/qa` fand ein Low-Bug: Admin/SU sahen kurz nach dem Login für ~200–800ms fälschlich die 3-Tab-Mitglied-Ansicht (inkl. "Lions" → `/mitgliedersuche` statt `/mitglieder`), bis die asynchrone Rollen-Abfrage in `bottom-tab-bar.tsx` zurückkam — Ursache war, dass der neue Mitglied-`else`-Zweig bereits beim initialen Default-Zustand (`isAdminOrSu = false`) griff. Gefixt durch einen neuen `roleLoaded`-Status: die `<nav>` rendert jetzt erst, wenn die Rolle tatsächlich geladen ist (vorher: sobald nur die Session bekannt war). Re-verifiziert mit einem frischen Testaccount (siehe QA Test Results, BUG-1).
+
 ## Backend Implementation Notes
 
 **Gebaut:**
@@ -273,6 +277,7 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 - **Root Cause (Hinweis für die Entwicklung, nicht behoben):** `src/components/bottom-tab-bar.tsx` — der neue `else`-Zweig für Nicht-Admins greift bereits beim initialen Default-Zustand `isAdminOrSu = false`, nicht erst nach dessen Bestätigung. Vor PROJ-13 bedeutete dasselbe Zeitfenster nur "noch keine Zusatz-Tabs sichtbar" (unvollständig, aber nie falsch); jetzt zeigt es kurzzeitig ein falsches Linkziel
 - **Kein Sicherheitsrisiko:** kein Datenzugriff auf fremde Vereine möglich, `/mitgliedersuche` funktioniert für den Admin technisch korrekt (er sieht nur seine eigenen Vereinsdaten) — lediglich das falsche Ziel für diesen einen Tab in diesem kurzen Fenster
 - **Priority:** Empfehlung: vor dem Deployment fixen (vermutlich günstig zu beheben, z.B. Tab-Liste erst rendern, wenn die Rolle geladen ist) — Priorisierung liegt beim Nutzer
+- **Status: Behoben (2026-07-17, `/frontend`-Rücksprung nach QA):** `src/components/bottom-tab-bar.tsx` rendert die `<nav>` jetzt erst, wenn zusätzlich zu `ready`/`session` auch ein neuer `roleLoaded`-Status `true` ist (wird erst gesetzt, nachdem die Rollen-/Label-Abfrage abgeschlossen ist, und bei jedem neuen Login/Auth-State-Wechsel wieder zurückgesetzt). Re-verifiziert mit einem frischen, disposablen Admin-Testaccount: 77 Messungen des "Lions"-Tab-Hrefs im ersten ~2,3-Sekunden-Fenster nach dem Login, alle zeigten durchgehend `/mitglieder` (korrekt), 0× das fälschliche `/mitgliedersuche`. `npm test` (95/95) und `npm run test:e2e --project=chromium` (22/22) bleiben grün.
 
 ### Summary
 - **Acceptance Criteria:** 14/14 funktional bestanden (1 Low-Bug bei AC-3, 1 reine Dokumentationskorrektur bei AC-4, keine funktionale Auswirkung)

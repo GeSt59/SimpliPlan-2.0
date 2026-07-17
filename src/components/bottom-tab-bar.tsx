@@ -27,6 +27,7 @@ export function BottomTabBar() {
 
   const [session, setSession] = useState<boolean>(false);
   const [ready, setReady] = useState(false);
+  const [roleLoaded, setRoleLoaded] = useState(false);
   const [isAdminOrSu, setIsAdminOrSu] = useState(false);
   const [labels, setLabels] = useState(DEFAULT_LABELS);
 
@@ -50,6 +51,7 @@ export function BottomTabBar() {
 
       if (!vereinId) {
         setLabels(DEFAULT_LABELS);
+        setRoleLoaded(true);
         return;
       }
 
@@ -68,6 +70,7 @@ export function BottomTabBar() {
         tab4: vereinRow?.tab4 || DEFAULT_LABELS.tab4,
         tab5: vereinRow?.tab5 || DEFAULT_LABELS.tab5,
       });
+      setRoleLoaded(true);
     }
 
     supabase.auth.getSession().then(({ data }) => {
@@ -81,10 +84,12 @@ export function BottomTabBar() {
       if (!active) return;
       setSession(!!newSession);
       if (newSession) {
+        setRoleLoaded(false);
         void loadRole(newSession.user.id);
       } else {
         setIsAdminOrSu(false);
         setLabels(DEFAULT_LABELS);
+        setRoleLoaded(false);
       }
     });
 
@@ -94,7 +99,7 @@ export function BottomTabBar() {
     };
   }, []);
 
-  if (!ready || !session) {
+  if (!ready || !session || !roleLoaded) {
     return null;
   }
 
