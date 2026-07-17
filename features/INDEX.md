@@ -30,7 +30,7 @@
 | PROJ-13 | Mitglieder-Ansicht/Suche | P0 | Deployed | PROJ-7, PROJ-15 | [PROJ-13](PROJ-13-mitglieder-ansicht-suche.md) | 2026-07-08 |
 | PROJ-14 | Kalender-Export (ICS, 1-Klick) | P0 | Roadmap | PROJ-10 | - | 2026-07-08 |
 | PROJ-15 | Bottom-Tab-Bar (Activities / Lions / Activity / Kategorien / Profil) | P0 | Deployed | PROJ-3, PROJ-4, PROJ-5, PROJ-6, PROJ-7, PROJ-8 | [PROJ-15](PROJ-15-bottom-tab-bar.md) | 2026-07-13 |
-| PROJ-16 | Meine Einteilungen (Mitglied-Übersicht eigener Zeitbereich-Zusagen) | P1 | In Progress | PROJ-10 | [PROJ-16](PROJ-16-meine-einteilungen.md) | 2026-07-16 |
+| PROJ-16 | Meine Einteilungen (Mitglied-Übersicht eigener Zeitbereich-Zusagen) | P1 | Approved | PROJ-10 | [PROJ-16](PROJ-16-meine-einteilungen.md) | 2026-07-16 |
 
 <!-- Add features above this line -->
 

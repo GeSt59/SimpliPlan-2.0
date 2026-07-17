@@ -164,7 +164,69 @@ Meine-Einteilungen-Seite "/meine-einteilungen" (NEU)
 **Kein Backend nötig:** Wie im Tech Design festgehalten, erlauben die bestehenden RLS-Policies bereits jedem Vereinsmitglied Lesezugriff auf die benötigten Daten — kein `/backend`-Durchlauf für dieses Feature erforderlich.
 
 ## QA Test Results
-_To be added by /qa_
+
+**Tested:** 2026-07-17
+**App URL:** http://localhost:3000 (Production-Build via `npm run build && npm run start`, gegen die echte Supabase-Instanz `cspljbavgdnsqlqkdxvc`)
+**Tester:** QA Engineer (AI)
+
+**Testdaten:** Zwei isolierte Test-Vereine (Verein A: 1 Test-Mitglied, 1 Test-Admin, 1 Rolle, 1 kommende + 1 vergangene Activity mit insgesamt 5 Zeitbereichen inkl. Stub und einem nicht zugesagten; Verein B: 1 Test-Mitglied für den Cross-Tenant-Check) sowie ein separates Set für den Cross-Browser/Responsive-Durchlauf (1 Verein mit bewusst langem Namen, 1 Mitglied mit langem Namen, 1 Activity mit langem Namen) — über zwei eigene, scriptgesteuerte Playwright-Läufe mit echten Logins gegen die echte Instanz erzeugt und danach vollständig entfernt (verifiziert: 0 verbleibende Zeilen in `vereine`/`users`).
+
+### Acceptance Criteria Status
+
+- [x] Unauthentifizierter Zugriff auf `/meine-einteilungen` leitet zu "/" um
+- [x] Profil-Seite zeigt den Button "Meine Einteilungen" (der zuvor bereits vorhandene, funktionslose Button ist jetzt korrekt verdrahtet)
+- [x] Klick auf den Button navigiert zur neuen Seite
+- [x] Standardansicht ist "Kommend"
+- [x] Toggle wechselt zu "Vergangen" und zurück zu "Kommend"
+- [x] Kommende zugesagte Zeitbereiche erscheinen unter der zugehörigen Activity (Name + Datum/Zeit als Überschrift), inkl. Zeitbereich-Label und Status-Icon
+- [x] Eine vergangene Activity erscheint ausschließlich im Bereich "Vergangen"
+- [x] Mehrere Zusagen zur selben Activity werden unter einer gemeinsamen Überschrift gruppiert (beide Zeitbereiche 10-11/11-12 der Test-Activity erschienen korrekt zusammen)
+- [x] Status-Icons korrekt: "zu viel" bei kommen > benötigt (2 von 1), "zu wenig" bei kommen < benötigt (1 von 3) — beide live mit echten Werten verifiziert
+- [x] Klick auf eine Activity-Gruppe/Zeile navigiert zu `/activities/[id]`
+- [x] Leerzustand "Kommend" erscheint korrekt bei einem Mitglied ohne Zusagen
+- [x] Leerzustand "Vergangen" erscheint korrekt bei einem Mitglied ohne vergangene Zusagen
+- [x] Stub-Zeitbereich (benötigt=0, keine Rolle) erscheint nicht, obwohl das Mitglied technisch eingetragen ist
+- [x] Admin sieht auf dieser Seite ausschließlich die eigenen Zusagen (verifiziert: Test-Admin sah den gemeinsam mit dem Mitglied zugesagten Zeitbereich, nicht aber den, für den nur das Mitglied allein zugesagt hatte — keine Admin-Sonderansicht)
+- [x] Nutzer von Verein A sieht ausschließlich Zusagen zu Activities des eigenen Vereins (Cross-Tenant-Check unten)
+
+**14/14 Akzeptanzkriterien bestanden.**
+
+### Edge Cases Status
+- [x] Mitglied ohne jegliche Zusagen → beide Bereiche zeigen den passenden Leerzustand
+- [x] Zeitbereich, für den das Mitglied nicht zugesagt hat, erscheint nicht (unabhängig davon, dass ein anderes Mitglied für denselben Zeitbereich zugesagt hat)
+- [x] Zwei Zeitbereiche derselben Activity mit unterschiedlichem Status → beide Icons unabhängig korrekt (zu viel / zu wenig gleichzeitig sichtbar in derselben Gruppe)
+- [~] Admin entfernt Mitglied nachträglich aus einem Zeitbereich (PROJ-11) → laut Spec kein automatisches Update ohne Neuladen; nicht separat simuliert, da rein clientseitiges Neuladen-bei-Navigation-Verhalten, kein neuer Code-Pfad
+- [~] Zeitbereich wird nachträglich zum Stub degradiert → identischer Filter-Code-Pfad wie der bereits getestete "Stub trotz Zusage"-Fall, nicht separat wiederholt
+- [x] id/adalo_id-Fallback: alle Testdaten nutzten echte Supabase-`id`-Werte (neu angelegte Testdaten haben keine `adalo_id`-Referenzen in `eingeteilte_users`); der Fallback-Mechanismus selbst ist identisch zum bereits in PROJ-10/11 verifizierten `resolveMemberName`/`isMemberInRefs`-Code und wird hier unverändert wiederverwendet (`findActivity` folgt demselben Muster) — nicht erneut isoliert manuell nachgetestet, da kein neuer Algorithmus
+
+### Security Audit Results
+- [x] **Cross-Tenant-Isolation:** Mitglied aus Verein B sieht auf `/meine-einteilungen` ausschließlich den Leerzustand, keine Daten von Verein A
+- [x] **RLS hält auch bei manipuliertem Filter stand:** Direkter Datenbank-Request als Verein-B-Mitglied mit einem Filter auf die `id` eines Verein-A-Mitglieds (`eingeteilte_users.cs.{fremde_id}`) liefert 0 Zeilen — die Cross-Tenant-Grenze sitzt in der RLS-Policy selbst (Join gegen `activities.vereine`), nicht im clientseitigen Query, und ist damit robust gegen einen manipulierten oder vergessenen Filter im Frontend-Code
+- [x] **XSS/Injection:** `<img src=x onerror="window.__xss=1">` als Activity-Name gespeichert und live gerendert — von React als reiner Text escaped, `window.__xss` blieb `undefined`
+- [x] **Autorisierung (Admin vs. Mitglied):** Kein Admin-spezifischer Datenzugriff oder UI-Unterschied vorhanden; Admin sieht nachweislich exakt dieselbe, auf die eigene Person beschränkte Sicht wie ein normales Mitglied
+- [x] Unauthentifizierter Zugriff redirected zu "/" (kein Datenzugriff ohne Session möglich)
+- [~] Rate-Limiting: nicht gesondert getestet (verlässt sich wie PROJ-3–13/15 bewusst auf Supabase-Standardlimits)
+
+### Cross-Browser & Responsive
+- [x] Chromium: alle Funktionstests bestanden; 375px/768px/1440px kein horizontales Overflow (mit bewusst langem Vereins-, Mitglieds- und Activity-Namen getestet)
+- [x] WebKit (Desktop-Engine, gleiche Breakpoints): 375px/768px/1440px ebenfalls kein horizontales Overflow; lange Activity-Namen truncaten sauber mit Ellipsis statt umzubrechen oder zu überlaufen
+
+### Regression Testing
+- `npm test` (Vitest): 95/95 weiterhin grün — keine neuen Unit-Tests hinzugefügt, da die einzige neue Logik (`findActivity`, page-lokal) strukturell identisch zu den bereits getesteten `findMember`/`findRole`-Funktionen ist und vollständig durch die obigen E2E-Checks abgedeckt wird
+- `npm run build`: sauber, neue Route `/meine-einteilungen` kompiliert fehlerfrei
+- `npx playwright test --project=chromium`: 22/22 bestehende Tests weiterhin grün (keine Regression durch die Profil-Seiten-Änderung oder die neue Route)
+- Neuer E2E-Test `tests/PROJ-16-meine-einteilungen.spec.ts` (1 unauthentifizierter Redirect-Check) hinzugefügt und grün; alle übrigen Kriterien per zwei scriptgesteuerten Playwright-Läufen mit isolierten Testdaten manuell verifiziert (siehe oben), aus denselben Gründen wie PROJ-3–13/15 nicht dauerhaft automatisiert (keine seedbare Test-Fixture-Strategie bisher, siehe PROJ-1)
+
+### Bugs Found
+Keine. Ein anfänglicher Testfehlschlag ("Profil-Seite zeigt den Button") stellte sich bei der Root-Cause-Analyse als Timing-Artefakt des eigenen QA-Skripts heraus (Prüfung erfolgte, bevor die Profil-Seite ihren asynchronen Ladevorgang abgeschlossen hatte) — mit einer kurzen Wartezeit und per Screenshot bestätigt: der Button ist korrekt vorhanden und funktioniert.
+
+### Summary
+- **Acceptance Criteria:** 14/14 bestanden
+- **Bugs Found:** 0
+- **Security:** Pass — Cross-Tenant-Isolation (inkl. direktem RLS-Bypass-Versuch), XSS-Schutz, korrekte Admin/Mitglied-Gleichbehandlung alle verifiziert
+- **Regressions:** Keine — bestehende Suite (22 E2E + 95 Unit) weiterhin grün, `npm run build` sauber
+- **Production Ready:** **YES** — kein offener Bug jeglicher Severity.
+- **Recommendation:** Deploy möglich.
 
 ## Deployment
 _To be added by /deploy_
