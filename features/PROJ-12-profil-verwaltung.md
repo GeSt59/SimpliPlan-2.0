@@ -4,12 +4,14 @@
 **Created:** 2026-07-16
 **Last Updated:** 2026-07-17
 
+> **Refinement (2026-07-17):** Nutzer hat nach dem Deployment gemeldet, dass allen Mitgliedern das Feld Telefonnummer fehlt. Neues Feld `telefonnummer` (Freitext, optional, keine Formatvalidierung — identisches Muster wie `mitgliedsnumer`) wird ergänzt: editierbar im eigenen Profil (PROJ-12, dieses Feature), zusätzlich admin-editierbar in der Mitgliederverwaltung (PROJ-7, siehe dortiges Refinement) und angezeigt in der Mitgliedersuche (PROJ-13, siehe dortiges Refinement). Die bereits deployte Basisfunktionalität bleibt unverändert live, während diese Erweiterung entsteht.
+
 ## Dependencies
 - PROJ-3 (Authentifizierung) — für eingeloggten Nutzer-Kontext (`auth_user_id`), Passwort-Änderungsmechanismus (analog zur bestehenden Reset-Passwort-Seite)
 - PROJ-7 (Mitgliederverwaltung Admin) — etabliert dieselben Felder (`mitgliedsnumer`, `geburtstag`, `titel_nachher`, `vorher_titel`, `profile_picture_url`) bereits admin-seitig; PROJ-12 gibt dem Mitglied zusätzlich Schreibzugriff auf seine eigene Zeile
 
 ## User Stories
-- Als Mitglied möchte ich mein Profil (Name, E-Mail, Mitgliedsnummer, Geburtstag, Titel, Profilbild) selbst ansehen und bearbeiten, damit meine Daten aktuell sind, ohne den Admin fragen zu müssen.
+- Als Mitglied möchte ich mein Profil (Name, E-Mail, Telefonnummer, Mitgliedsnummer, Geburtstag, Titel, Profilbild) selbst ansehen und bearbeiten, damit meine Daten aktuell sind, ohne den Admin fragen zu müssen.
 - Als Mitglied möchte ich mein Profilbild hochladen oder ersetzen können, damit ich in der Mitglieder-Kartenansicht (PROJ-7) und der Mitgliedersuche (PROJ-13) mit einem aktuellen Foto erscheine.
 - Als Mitglied möchte ich mein Passwort ändern können, während ich eingeloggt bin, damit ich es aktualisieren kann, ohne mich auszuloggen und den "Passwort vergessen"-Flow zu nutzen.
 - Als Mitglied möchte ich meinen Vereinsnamen im Profil sehen (nur lesend), damit ich Kontext habe, welchem Verein ich zugeordnet bin.
@@ -25,6 +27,7 @@
 - Bildzuschnitt/-bearbeitung (Crop, Rotation) beim Profilbild-Upload — Bild wird 1:1 übernommen, gleiches Muster wie Vereinslogo/Kategorie-Bild/PROJ-7-Mitgliederfoto
 - E-Mail-Bestätigungslink bei E-Mail-Änderung — bewusst kein Bestätigungsschritt (siehe Decision Log), kein E-Mail-Versand-Service im Projekt verifiziert (siehe PROJ-3 Open Questions)
 - Anzeige/Verwaltung anderer Mitglieder über diese Seite — bleibt PROJ-7 (Admin) bzw. PROJ-13 (Mitgliedersuche)
+- Formatvalidierung der Telefonnummer (z.B. Ländervorwahl-Pflicht, Zeichen-Whitelist) — reines Freitextfeld, identisches Muster wie `mitgliedsnumer`, keine Validierung (Refinement 2026-07-17)
 
 ## Acceptance Criteria
 
@@ -33,7 +36,7 @@
 - [ ] Angenommen ein Mitglied ist eingeloggt, wenn es `/profil` aufruft, dann sieht es Profilbild (oder Platzhalter), Vorname + Nachname, E-Mail, Vereinsname (read-only) sowie die Buttons "Profil ändern", "Passwort ändern" und "Logout"
 - [ ] Angenommen der eingeloggte Nutzer ist Admin, wenn er `/profil` aufruft, dann sieht er zusätzlich den bestehenden Button "Vereinseinstellungen"
 - [ ] Angenommen ein Mitglied hat kein Profilbild, dann zeigt `/profil` einen neutralen Platzhalter anstelle eines Fotos (gleicher Platzhalter wie in der PROJ-7-Kartenansicht)
-- [ ] Angenommen der Nutzer klickt "Profil ändern", dann öffnet sich ein Formular mit Vorname, Nachname, E-Mail (alle Pflicht) sowie Mitgliedsnummer, Geburtstag, Titel vorher/nachher (alle optional, Freitext) und einem Profilbild-Upload-Feld, vorausgefüllt mit den aktuellen Werten
+- [ ] Angenommen der Nutzer klickt "Profil ändern", dann öffnet sich ein Formular mit Vorname, Nachname, E-Mail (alle Pflicht) sowie Telefonnummer, Mitgliedsnummer, Geburtstag, Titel vorher/nachher (alle optional, Freitext) und einem Profilbild-Upload-Feld, vorausgefüllt mit den aktuellen Werten
 - [ ] Angenommen Vorname, Nachname oder E-Mail werden beim Speichern leer gelassen, dann wird für jedes leere Pflichtfeld ein Validierungsfehler angezeigt und nichts gespeichert
 - [ ] Angenommen der Nutzer ändert seine E-Mail auf eine bereits bei einem anderen Account registrierte Adresse, wenn er speichert, dann wird die Fehlermeldung "Diese E-Mail ist bereits registriert" angezeigt und nichts gespeichert
 - [ ] Angenommen der Nutzer ändert Stammdaten und/oder E-Mail und speichert erfolgreich, dann werden die Änderungen sofort übernommen (E-Mail ohne zusätzlichen Bestätigungsschritt) und eine Erfolgsmeldung angezeigt; ein anschließender Login funktioniert bereits mit der neuen E-Mail
@@ -48,7 +51,7 @@
 ## Edge Cases
 - Mitglied ändert die eigene E-Mail auf eine bereits vergebene Adresse → dieselbe "bereits registriert"-Regel wie bei Registrierung (PROJ-3) und Admin-Bearbeiten (PROJ-7)
 - Mitglied ändert die eigene E-Mail erfolgreich → keine erzwungene Abmeldung; die laufende Session bleibt bis zum nächsten regulären Logout gültig (konsistent mit dem `aktiv`-Verhalten aus PROJ-3)
-- Migriertes Bestandsmitglied ohne gesetzte Mitgliedsnummer/Geburtstag/Titel → Felder erscheinen leer im Formular, kein Pflichtfeld, kein Fehler (identisch zu PROJ-7)
+- Migriertes Bestandsmitglied ohne gesetzte Telefonnummer/Mitgliedsnummer/Geburtstag/Titel → Felder erscheinen leer im Formular, kein Pflichtfeld, kein Fehler (identisch zu PROJ-7); da `telefonnummer` ein komplett neues Feld ist, betrifft das anfangs ausnahmslos alle Bestandsmitglieder
 - Profilbild-Upload schlägt wegen Netzwerkfehler fehl → Fehlermeldung, bisheriges Bild bleibt unverändert (identisches Muster wie Vereinslogo-/Mitgliederfoto-Upload)
 - Mitglied versucht per direktem REST-Call `admin`, `aktiv`, `su` oder `verein` der eigenen Zeile zu ändern → serverseitig blockiert (RLS bzw. der bestehende PROJ-7-Trigger gegen `verein`-Änderungen), nicht nur clientseitig ausgeblendet
 - Admin bearbeitet gleichzeitig dasselbe Mitglied über PROJ-7, während das Mitglied selbst über PROJ-12 speichert → kein Locking im MVP, letzter Schreibvorgang gewinnt (konsistent mit PROJ-4/5/6/7)
@@ -74,6 +77,8 @@
 | Mitglied kann sein Passwort im eingeloggten Zustand direkt ändern (ohne erneute Abfrage des aktuellen Passworts) | Nutzerentscheidung im Interview; Nutzer hat bereits eine gültige, authentifizierte Session, zusätzliche Abfrage bringt keinen Sicherheitsgewinn | 2026-07-16 |
 | "Meine Einteilungen" wird NICHT Teil von PROJ-12, sondern ein eigenes zukünftiges Feature | Nutzerentscheidung im Interview; wahrt Single Responsibility (Profildaten vs. Zeitbereich-Zusagen sind fachlich getrennte Datenquellen) | 2026-07-16 |
 | `admin`, `su`, `aktiv` und `verein` bleiben für das Mitglied nicht editierbar | Eigene Produktentscheidung, konsistent mit dem bestehenden Rechtemodell (diese Felder sind exklusiv Admin/SU/direkt-in-Supabase vorbehalten, siehe PROJ-3/PROJ-7) | 2026-07-16 |
+| **Refinement 2026-07-17:** Neues Feld `telefonnummer` wird eingeführt — optionales Freitextfeld, editierbar sowohl im eigenen Profil (dieses Feature) als auch admin-seitig (PROJ-7), sichtbar in der Mitgliedersuche (PROJ-13) | Nutzeranforderung nach dem Deployment ("Bei allen usern fehlt das Feld Telefonnummer"); Platzierung/Bearbeitbarkeit folgt exakt dem bereits etablierten Muster von `mitgliedsnumer` (gleiche drei Features betroffen, gleiche Editierbarkeits-Matrix Admin+Mitglied) | 2026-07-17 |
+| Admin darf die Telefonnummer auch für andere Mitglieder bearbeiten (PROJ-7), nicht nur das Mitglied selbst | Nutzerentscheidung im Refinement-Interview; Konsistenz mit allen anderen Stammdatenfeldern, die Admin und Mitglied bereits gleichermaßen bearbeiten dürfen — eine Ausnahme nur für dieses eine Feld wäre eine unbegründete Asymmetrie | 2026-07-17 |
 
 ### Technical Decisions
 <!-- Added by /architecture -->
@@ -88,6 +93,8 @@
 | Vereinsname wird read-only über die bereits bestehende `vereine_select_own`-Policy (aus PROJ-3) geladen, keine neue Policy nötig | Diese Policy erlaubt einem Mitglied bereits das Lesen der eigenen `vereine`-Zeile; PROJ-12 nutzt sie erstmals für eine sichtbare Anzeige (bisher nur intern für den `freigeschaltet`-Check bei Login verwendet) | 2026-07-16 |
 | Bearbeiten-Dialog und Passwort-Dialog werden Teil derselben `src/app/profil/page.tsx`-Komponente (zwei separate Dialoge), keine eigenen Routen | Konsistent mit dem Ein-Seiten-Dialog-Muster von PROJ-4/5/6/7; die Seite ist klein genug (kein Listing, nur ein Datensatz) | 2026-07-16 |
 | Keine neuen npm-Pakete | `@supabase/supabase-js`, `zod`, `react-hook-form` sowie die benötigten shadcn/ui-Komponenten (`dialog`, `form`, `input`, `avatar`, `button`, `alert`) sind bereits im Projekt vorhanden | 2026-07-16 |
+| **Refinement 2026-07-17:** Neue Spalte `public.users.telefonnummer` (`text`, nullable, kein Default) | Reines Freitextfeld ohne Formatvalidierung, identischer Spaltentyp wie `mitgliedsnumer`; keine neue RLS-Policy nötig — die bestehenden `users_update_own`/`users_update_own_verein_admin`-Policies (PROJ-7/12) sind spaltenunabhängig und decken die neue Spalte automatisch ab | 2026-07-17 |
+| `PATCH /api/profil`- und `PATCH /api/mitglieder/[id]`-Zod-Schemas um optionales `telefonnummer: z.string().nullable().optional()` erweitert | Identisches Muster wie die bereits vorhandenen optionalen Freitextfelder (`mitgliedsnumer`, `geburtstag`) in denselben Routen | 2026-07-17 |
 
 ---
 <!-- Sections below are added by subsequent skills -->

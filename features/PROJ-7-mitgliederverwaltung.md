@@ -2,9 +2,11 @@
 
 ## Status: Deployed
 **Created:** 2026-07-11
-**Last Updated:** 2026-07-12
+**Last Updated:** 2026-07-17
 
 > **Refinement (2026-07-12):** Nutzer hat nach dem ersten Deployment ein visuelles Redesign angefordert (Foto-Karten-Ansicht nach Vorbild der alten Adalo-App statt der einfachen Liste) sowie zwei neue Fähigkeiten: Profilbild-Upload/-Anzeige und hartes Löschen von Mitgliedern. Status auf "Planned" zurückgesetzt, da der neue Umfang eine erneute `/architecture`→`/frontend`→`/backend`→`/qa`→`/deploy`-Runde braucht. Die bereits deployte Basisfunktionalität (Liste, Bearbeiten, Anlegen, Aktiv/Admin-Toggle, letzter-Admin-Schutz, SU-Switcher) bleibt unverändert live und funktionsfähig, während diese Erweiterung entsteht.
+
+> **Refinement (2026-07-17):** Neues Feld `telefonnummer` (siehe PROJ-12-Refinement vom selben Tag) wird zusätzlich admin-seitig editierbar — Admin darf die Telefonnummer beliebiger Mitglieder des eigenen Vereins bearbeiten, identisches Muster wie die bereits editierbaren Felder Mitgliedsnummer/Geburtstag/Titel. Kein neuer `/architecture`-Durchlauf nötig (rein additives Formularfeld, keine neuen Berechtigungsfragen), direkt über `/frontend`+`/backend` umgesetzt.
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Mitglieder-Zugriff auf den eigenen Verein beschränken
@@ -13,7 +15,7 @@
 
 ## User Stories
 - Als Admin möchte ich alle Mitglieder meines Vereins in einer durchsuchbaren Liste sehen, damit ich schnell den passenden Datensatz finde.
-- Als Admin möchte ich Stammdaten eines Mitglieds bearbeiten (Name, E-Mail, Mitgliedsnummer, Geburtstag, Titel), damit die Daten aktuell bleiben.
+- Als Admin möchte ich Stammdaten eines Mitglieds bearbeiten (Name, E-Mail, Telefonnummer, Mitgliedsnummer, Geburtstag, Titel), damit die Daten aktuell bleiben.
 - Als Admin möchte ich ein Mitglied deaktivieren/reaktivieren können, damit ausgeschiedene Mitglieder markiert sind, ohne ihre Daten zu verlieren.
 - Als Admin möchte ich einem Mitglied Admin-Rechte für meinen Verein verleihen oder entziehen können, damit ich Verantwortung auf mehrere Personen verteilen kann.
 - Als Admin möchte ich ein neues Mitglied manuell anlegen können (ohne dass die Person sich selbst mit Freischaltcode registriert), damit ich auch Personen ohne eigene Registrierung Zugang geben kann.
@@ -28,7 +30,8 @@
 
 ## Out of Scope
 - Vergabe von SuperUser-Rechten (`users.su`) über die App-UI — der SU setzt das Feld direkt in Supabase (bewusste Nutzerentscheidung), kein Feature dafür in PROJ-7 oder der Roadmap (siehe PROJ-3 Open Questions)
-- Bearbeiten von `mitgliedsnumer`, `geburtstag`, `titel_nachher`, `vorher_titel` durch das Mitglied selbst — das ist Teil von PROJ-12 (Profil-Verwaltung); PROJ-7 gibt dem Admin lediglich zusätzlich Schreibzugriff auf dieselben Felder
+- Bearbeiten von `mitgliedsnumer`, `geburtstag`, `titel_nachher`, `vorher_titel`, `telefonnummer` durch das Mitglied selbst — das ist Teil von PROJ-12 (Profil-Verwaltung); PROJ-7 gibt dem Admin lediglich zusätzlich Schreibzugriff auf dieselben Felder
+- Formatvalidierung der Telefonnummer — reines Freitextfeld, identisch zu Mitgliedsnummer (Refinement 2026-07-17)
 - Passwort-Reset für ein Mitglied durch den Admin (z.B. "Passwort zurücksetzen"-Button) — Mitglieder nutzen dafür den bestehenden "Passwort vergessen"-Flow aus PROJ-3
 - Einladungs-E-Mail-Versand (Supabase Invite/Magic Link) — kein E-Mail-Versand-Service für dieses Projekt verifiziert; Admin gibt das Initial-Passwort stattdessen persönlich weiter
 - Mitgliedersuche/-ansicht für normale Mitglieder (Vereinskollegen finden) — eigenes Feature PROJ-13 (Mitglieder-Ansicht/Suche)
@@ -51,7 +54,7 @@
 - [ ] Angenommen der Admin gibt einen Suchbegriff ein, dann filtert die Liste live auf Treffer in Vorname, Nachname oder E-Mail
 - [ ] Angenommen der Admin wählt den Filter "Nur aktiv" oder "Nur inaktiv", dann zeigt die Liste ausschließlich Mitglieder mit dem entsprechenden Status
 - [ ] Angenommen der Verein des Admins hat noch keine Mitglieder außer sich selbst, wenn er `/mitglieder` aufruft, dann sieht er einen Leerzustand mit Hinweistext und einer Aktion zum manuellen Anlegen eines Mitglieds
-- [ ] Angenommen der Admin öffnet ein bestehendes Mitglied zum Bearbeiten, dann sind Vorname, Nachname, E-Mail, Mitgliedsnummer, Geburtstag und Titel vorausgefüllt
+- [ ] Angenommen der Admin öffnet ein bestehendes Mitglied zum Bearbeiten, dann sind Vorname, Nachname, E-Mail, Telefonnummer, Mitgliedsnummer, Geburtstag und Titel vorausgefüllt
 - [ ] Angenommen der Admin ändert Stammdaten eines Mitglieds und speichert, dann werden die Änderungen übernommen und eine Erfolgsmeldung angezeigt
 - [ ] Angenommen Vorname, Nachname oder E-Mail werden beim Bearbeiten oder Anlegen leer gelassen, wenn der Admin speichert, dann wird für jedes leere Pflichtfeld ein Validierungsfehler angezeigt und nichts gespeichert
 - [ ] Angenommen die eingegebene E-Mail ist bei einem anderen Account bereits registriert, wenn der Admin speichert (Bearbeiten oder Anlegen), dann wird die Fehlermeldung "Diese E-Mail ist bereits registriert" angezeigt und nichts gespeichert
@@ -155,6 +158,7 @@
 | Foto-Karten-Ansicht und Listenform bleiben Teil derselben `src/app/mitglieder/page.tsx`-Komponente, umgeschaltet über lokalen State + `localStorage` (Schlüssel `mitglieder-view`), keine zweite Route | Konsistent mit dem Ein-Seiten-Muster dieser Seite; beide Ansichten nutzen dieselbe `filteredMitglieder`-Datenquelle, nur unterschiedliches Rendering | 2026-07-12 |
 | Header wird für `/mitglieder` auf einen durchgehenden farbigen Balken (`bg-brand-blue`, weißer Titeltext) umgestellt, abweichend vom aktuellen `h1`-Muster von Kategorien/Rollen/Voreinstellungen | Explizite Nutzeranforderung (Bildvorlage); bewusst nur für diese eine Seite geändert, keine rückwirkende Anpassung der anderen Admin-Seiten ohne gesonderten Auftrag (gezielte Änderung statt Bonus-Redesign) | 2026-07-12 |
 | "Neues Mitglied"-Button im Seitenkopf entfällt zugunsten eines schwebenden Rundbuttons (FAB) unten, konsistent mit der Bildvorlage | 1:1-Umsetzung der Nutzeranforderung; funktional identisch (öffnet denselben Anlege-Dialog), nur andere Platzierung/Optik | 2026-07-12 |
+| **Refinement 2026-07-17:** `telefonnummer` als weiteres optionales Feld in den Bearbeiten-Dialog aufgenommen, `PATCH /api/mitglieder/[id]`-Zod-Schema entsprechend erweitert | Identisches additives Muster wie die bestehenden optionalen Felder; keine neue RLS-Policy nötig (spaltenunabhängige Update-Policies) | 2026-07-17 |
 
 ---
 <!-- Sections below are added by subsequent skills -->
@@ -195,7 +199,7 @@ Mitglieder-Seite "/mitglieder" (neu)
 ### B) Data Model (fachlich, kein Code)
 
 - Keine neue Tabelle. Nutzt die bereits existierende `users`-Tabelle aus der Adalo-Migration.
-- Vom Admin/SU editierbare Felder: `vorname`, `nachname`, `email`, `mitgliedsnumer`, `geburtstag`, `titel_nachher`, `vorher_titel`, `aktiv`, `admin`.
+- Vom Admin/SU editierbare Felder: `vorname`, `nachname`, `email`, `telefonnummer`, `mitgliedsnumer`, `geburtstag`, `titel_nachher`, `vorher_titel`, `aktiv`, `admin`.
 - Nicht editierbar in PROJ-7: `su` (nur direkt in Supabase gesetzt), `voller_name`/`username`/`adalo_id_field`/`berechtigung`/`profile_picture`/`einteilungens`/`created_dates` (Adalo-Altfelder ohne PROJ-7-Bezug).
 - Neues Mitglied bekommt wie bei der Registrierung (PROJ-3) einen Supabase-Auth-Account (E-Mail + vom Admin gesetztes Initial-Passwort) und eine verknüpfte `users`-Zeile (`auth_user_id`), zugeordnet zum aktiven Verein-Kontext (`verein`-Array, ein Eintrag), `admin = false`, `aktiv = true`.
 - "Eigener Verein"/"eigene Zeile" wird wie in PROJ-3/4/5/6 über `users.auth_user_id = auth.uid()` und darüber `users.verein` bestimmt.

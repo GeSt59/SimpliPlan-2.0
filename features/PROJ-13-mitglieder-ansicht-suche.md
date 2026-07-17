@@ -4,6 +4,8 @@
 **Created:** 2026-07-17
 **Last Updated:** 2026-07-17 (Deploy)
 
+> **Refinement (2026-07-17):** Neues Feld `telefonnummer` (siehe PROJ-12-Refinement vom selben Tag) wird zusätzlich im read-only Detail-Dialog angezeigt, identisches Platzierungsmuster wie Mitgliedsnummer/Geburtstag. Kein neuer `/architecture`-Durchlauf nötig (rein additives Anzeigefeld, keine neue RLS-Frage — die bestehende `users_select_own_verein_member`-Policy ist spaltenunabhängig und deckt die neue Spalte bereits ab), direkt über `/frontend` umgesetzt.
+
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Sichtbarkeit strikt auf den eigenen Verein beschränken
 - PROJ-3 (Authentifizierung) — für eingeloggten Mitglied-Zugriff
@@ -13,7 +15,7 @@
 ## User Stories
 - Als Mitglied möchte ich alle Mitglieder meines eigenen Vereins in einer durchsuchbaren Übersicht sehen, damit ich Vereinskollegen schnell finde.
 - Als Mitglied möchte ich nach Vorname, Nachname oder E-Mail suchen können, damit ich eine bestimmte Person gezielt finde, ohne die ganze Liste zu durchscrollen.
-- Als Mitglied möchte ich auf ein Mitglied klicken und dessen Kontakt- und Stammdaten (E-Mail, Mitgliedsnummer, Titel, Geburtstag) in einer schreibgeschützten Ansicht sehen, damit ich es kontaktieren oder wiedererkennen kann.
+- Als Mitglied möchte ich auf ein Mitglied klicken und dessen Kontakt- und Stammdaten (E-Mail, Telefonnummer, Mitgliedsnummer, Titel, Geburtstag) in einer schreibgeschützten Ansicht sehen, damit ich es kontaktieren oder wiedererkennen kann.
 - Als Mitglied möchte ich erkennen, wer im Verein Admin ist, damit ich weiß, an wen ich mich bei Fragen wenden kann.
 - Als Mitglied möchte ich zwischen Foto-Karten- und Listenform umschalten können, damit ich je nach Situation die passendere Ansicht wähle — analog zur Admin-Ansicht aus PROJ-7.
 - Als Mitglied möchte ich über einen eigenen Tab in der unteren Navigationsleiste direkt zur Mitgliedersuche gelangen, damit ich sie ohne Umweg über das Profil erreiche.
@@ -39,7 +41,7 @@
 - [ ] Angenommen der Verein des Mitglieds hat außer ihm selbst noch keine weiteren Mitglieder, dann sieht es einen Leerzustand mit Hinweistext (keine Aktion zum Anlegen, da PROJ-13 read-only ist)
 - [ ] Angenommen das Mitglied gibt einen Suchbegriff ein, dann filtert die Liste live auf Treffer in Vorname, Nachname oder E-Mail
 - [ ] Angenommen das Mitglied klickt auf den Button "In Listenform", dann wechselt die Ansicht zur einfachen Listenform; ein erneuter Klick wechselt zurück zur Foto-Karten-Ansicht; die zuletzt gewählte Ansicht wird gemerkt (analog zu PROJ-7)
-- [ ] Angenommen das Mitglied klickt auf die Karte/Zeile eines Mitglieds, dann öffnet sich ein schreibgeschützter Dialog mit Foto, Vorname, Nachname, E-Mail, Mitgliedsnummer, Geburtstag und Titel (vorher/nachher) — ohne Eingabefelder oder Speichern-Button
+- [ ] Angenommen das Mitglied klickt auf die Karte/Zeile eines Mitglieds, dann öffnet sich ein schreibgeschützter Dialog mit Foto, Vorname, Nachname, E-Mail, Telefonnummer, Mitgliedsnummer, Geburtstag und Titel (vorher/nachher) — ohne Eingabefelder oder Speichern-Button
 - [ ] Angenommen ein Mitglied ist Admin des Vereins, dann erscheint bei ihm in Karte, Liste und Detail-Dialog ein "Admin"-Badge
 - [ ] Angenommen ein Mitglied ist inaktiv (`aktiv = false`), dann erscheint es weiterhin in der Suche, jedoch mit einem "Inaktiv"-Badge
 - [ ] Angenommen das Mitglied sieht sich selbst in der Liste, dann ist die eigene Karte/Zeile zusätzlich mit einem "Du"-Badge gekennzeichnet
@@ -50,7 +52,7 @@
 ## Edge Cases
 - Suchbegriff ergibt keine Treffer → Hinweistext "Keine Mitglieder gefunden" statt leerer Fläche
 - Mitglied wechselt zwischen Foto-Karten- und Listenform während eine Suche aktiv ist → Suchbegriff bleibt über den Ansichtswechsel hinweg erhalten (analog PROJ-7)
-- Migrierte Bestandsmitglieder ohne gesetzte Mitgliedsnummer/Geburtstag/Titel → entsprechendes Feld erscheint im Detail-Dialog schlicht leer/ausgeblendet, kein Fehler
+- Migrierte Bestandsmitglieder ohne gesetzte Telefonnummer/Mitgliedsnummer/Geburtstag/Titel → entsprechendes Feld erscheint im Detail-Dialog schlicht leer/ausgeblendet, kein Fehler
 - Mitglied, das gerade selbst deaktiviert wurde, ruft die Suche weiterhin auf → laut PROJ-3/PROJ-7-Präzedenz beeinflusst `aktiv` den Login nicht; die Suche bleibt bis zum nächsten Logout normal nutzbar
 - Zwei Mitglieder mit identischem Namen → Liste zeigt beide unabhängig an, E-Mail dient zur eindeutigen Unterscheidung
 - Direkter URL-Aufruf der neuen Route durch ein Mitglied eines anderen Vereins → RLS liefert ausschließlich Zeilen des eigenen Vereins, kein Cross-Tenant-Leck möglich
@@ -78,6 +80,7 @@
 | Geburtstag ist im Detail-Dialog sichtbar | Nutzerentscheidung im Interview; in Vereinen häufig gewünscht (z.B. Geburtstagsglückwünsche), konsistent mit den übrigen sichtbaren Stammdaten | 2026-07-17 |
 | Kein Direktkontakt (Mailto-Link, Messaging) im MVP | Nicht Teil der Interview-Anforderung; E-Mail wird nur als Text angezeigt, Kontaktaufnahme läuft weiterhin außerhalb der App | 2026-07-17 |
 | SuperUser nutzt für vereinsübergreifende Verwaltung weiterhin ausschließlich PROJ-7, kein eigener Zugriff auf PROJ-13 | PROJ-13 ist eine reine Mitglied-Funktion für den eigenen Verein; der SU hat über PROJ-7 bereits vollen (und weitergehenden) Zugriff | 2026-07-17 |
+| **Refinement 2026-07-17:** Telefonnummer wird im Detail-Dialog angezeigt (gleiche Stelle wie Mitgliedsnummer/Geburtstag), nicht auf der Karte/in der Liste | Konsistent mit der bereits etablierten Platzierung dieser Kategorie von Zusatzfeldern; Karten-Overlay bleibt bewusst auf Name+E-Mail beschränkt (Platzgründe, siehe ursprüngliche Tech-Design-Entscheidung) | 2026-07-17 |
 
 ### Technical Decisions
 <!-- Added by /architecture -->
