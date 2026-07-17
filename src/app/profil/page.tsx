@@ -36,6 +36,7 @@ type Profile = {
   vorname: string | null;
   nachname: string | null;
   email: string | null;
+  telefonnummer: string | null;
   mitgliedsnumer: string | null;
   geburtstag: string | null;
   vorher_titel: string | null;
@@ -49,6 +50,7 @@ const profileSchema = z.object({
   vorname: z.string().min(1, "Vorname ist erforderlich"),
   nachname: z.string().min(1, "Nachname ist erforderlich"),
   email: z.string().min(1, "E-Mail ist erforderlich").email("Ungültige E-Mail-Adresse"),
+  telefonnummer: z.string(),
   mitgliedsnumer: z.string(),
   geburtstag: z.string(),
   vorherTitel: z.string(),
@@ -92,6 +94,7 @@ export default function ProfilPage() {
       vorname: "",
       nachname: "",
       email: "",
+      telefonnummer: "",
       mitgliedsnumer: "",
       geburtstag: "",
       vorherTitel: "",
@@ -119,7 +122,7 @@ export default function ProfilPage() {
       const { data: userRow } = await supabase
         .from("users")
         .select(
-          "id, vorname, nachname, email, mitgliedsnumer, geburtstag, vorher_titel, titel_nachher, profile_picture_url, verein, admin"
+          "id, vorname, nachname, email, telefonnummer, mitgliedsnumer, geburtstag, vorher_titel, titel_nachher, profile_picture_url, verein, admin"
         )
         .eq("auth_user_id", session.user.id)
         .maybeSingle();
@@ -165,6 +168,7 @@ export default function ProfilPage() {
       vorname: profile.vorname ?? "",
       nachname: profile.nachname ?? "",
       email: profile.email ?? "",
+      telefonnummer: profile.telefonnummer ?? "",
       mitgliedsnumer: profile.mitgliedsnumer ?? "",
       geburtstag: profile.geburtstag ?? "",
       vorherTitel: profile.vorher_titel ?? "",
@@ -230,6 +234,7 @@ export default function ProfilPage() {
           vorname: values.vorname.trim(),
           nachname: values.nachname.trim(),
           email: values.email.trim(),
+          telefonnummer: values.telefonnummer.trim() || null,
           mitgliedsnumer: values.mitgliedsnumer.trim() || null,
           geburtstag: values.geburtstag.trim() || null,
           vorherTitel: values.vorherTitel.trim() || null,
@@ -254,6 +259,7 @@ export default function ProfilPage() {
         vorname: values.vorname.trim(),
         nachname: values.nachname.trim(),
         email: values.email.trim(),
+        telefonnummer: values.telefonnummer.trim() || null,
         mitgliedsnumer: values.mitgliedsnumer.trim() || null,
         geburtstag: values.geburtstag.trim() || null,
         vorher_titel: values.vorherTitel.trim() || null,
@@ -465,6 +471,20 @@ export default function ProfilPage() {
                     <FormLabel>E-Mail</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="E-Mail eingeben..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="telefonnummer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefonnummer (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Telefonnummer eingeben..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -211,6 +211,12 @@ Visuelle Vorlage: `public/Profil anzeigen.jpg` (Adalo-Mockup) — Foto-Rahmen, N
 
 **Contract unverändert gegenüber den Frontend-Notizen** — keine Anpassungen an `src/app/profil/page.tsx` nötig, die Route erfüllt exakt den dort bereits dokumentierten Aufruf.
 
+### Refinement 2026-07-17: Telefonnummer
+
+**Gebaut:** `public.users.telefonnummer` (neue Spalte, `text`, nullable) per Migration angelegt; `src/app/profil/page.tsx` um ein Formularfeld "Telefonnummer (optional)" erweitert (nach E-Mail, vor Mitgliedsnummer); `PATCH /api/profil`-Zod-Schema und Update-Payload entsprechend erweitert. Identisches, additives Muster wie die bestehenden optionalen Felder — keine neue RLS-Policy nötig (spaltenunabhängig).
+
+**Verifiziert (echte, disposable Test-Accounts, danach gelöscht):** Mitglied setzt eigene Telefonnummer über `/profil` → bleibt nach Reload erhalten; Admin sieht denselben Wert vorausgefüllt im PROJ-7-Bearbeiten-Dialog und kann ihn überschreiben (siehe PROJ-7-Notizen); der aktualisierte Wert erscheint korrekt im PROJ-13-Detail-Dialog. `npm test` (95/95) und `npm run test:e2e --project=chromium` (22/22) bleiben grün, `npm run build` sauber.
+
 ## QA Test Results
 
 **Tested:** 2026-07-16

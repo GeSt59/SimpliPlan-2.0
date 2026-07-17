@@ -189,6 +189,12 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 
 **Kein Vitest-Test hinzugefügt:** Es gibt keine neue API-Route zu testen (reiner RLS-Zugriff); die Verifikation lief wie oben beschrieben per direkter SQL-Simulation gegen die Live-Policy, konsistent mit dem bisherigen Projektmuster für RLS-Änderungen (kein Seed-Fixture-Mechanismus, siehe PROJ-1/3–7/10–12).
 
+### Refinement 2026-07-17: Telefonnummer
+
+**Gebaut:** `src/app/mitgliedersuche/page.tsx` — Detail-Dialog um ein bedingtes Feld "Telefonnummer" erweitert (gleiche Stelle/Muster wie Mitgliedsnummer/Geburtstag, nur sichtbar wenn gesetzt). Keine Backend-Änderung nötig: die bestehende `users_select_own_verein_member`-Policy ist spaltenunabhängig und deckt `telefonnummer` bereits ab.
+
+**Verifiziert (echte, disposable Test-Accounts, danach gelöscht):** Ein von Admin gesetzter Telefonnummer-Wert erscheint korrekt im Detail-Dialog eines Mitglieds in der Mitgliedersuche (End-to-End über PROJ-12 → PROJ-7 → PROJ-13 verifiziert, siehe dortige Notizen). `npm test` (95/95), `npm run test:e2e --project=chromium` (22/22), `npm run build` — alle grün.
+
 ## QA Test Results
 
 **Tested:** 2026-07-17

@@ -24,6 +24,7 @@ type Mitglied = {
   vorname: string | null;
   nachname: string | null;
   email: string | null;
+  telefonnummer: string | null;
   mitgliedsnumer: string | null;
   geburtstag: string | null;
   vorher_titel: string | null;
@@ -109,7 +110,7 @@ export default function MitgliedersuchePage() {
     const { data, error } = await supabase
       .from("users")
       .select(
-        "id, auth_user_id, vorname, nachname, email, mitgliedsnumer, geburtstag, vorher_titel, titel_nachher, aktiv, admin, profile_picture_url"
+        "id, auth_user_id, vorname, nachname, email, telefonnummer, mitgliedsnumer, geburtstag, vorher_titel, titel_nachher, aktiv, admin, profile_picture_url"
       )
       .contains("verein", [vId])
       .order("nachname", { ascending: true });
@@ -337,6 +338,12 @@ export default function MitgliedersuchePage() {
                   <dt className="text-xs text-muted-foreground">E-Mail</dt>
                   <dd className="text-foreground">{detailTarget.email}</dd>
                 </div>
+                {detailTarget.telefonnummer && (
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Telefonnummer</dt>
+                    <dd className="text-foreground">{detailTarget.telefonnummer}</dd>
+                  </div>
+                )}
                 {detailTarget.mitgliedsnumer && (
                   <div>
                     <dt className="text-xs text-muted-foreground">Mitgliedsnummer</dt>

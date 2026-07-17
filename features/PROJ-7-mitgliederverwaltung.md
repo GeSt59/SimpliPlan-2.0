@@ -337,6 +337,12 @@ Mitglieder-Seite "/mitglieder"
 
 **Bewusst nicht gebaut:** keine Bereinigung der beiden redundanten/legacy `vereine`-Lese-Policies aus PROJ-3/4 (`Users can view own verein`, `adalo_id`-basiert) — außerhalb des PROJ-7-Scopes, wie schon in PROJ-4 vermerkt.
 
+### Refinement 2026-07-17: Telefonnummer
+
+**Gebaut:** `src/app/mitglieder/page.tsx` um ein Formularfeld "Telefonnummer (optional)" im Bearbeiten-Dialog erweitert (gleiche Stelle wie bei PROJ-12); `PATCH /api/mitglieder/[id]`-Zod-Schema und Update-Payload entsprechend erweitert. Spalte `public.users.telefonnummer` bereits im Rahmen des PROJ-12-Refinements angelegt (dieselbe Migration deckt alle drei Features ab).
+
+**Verifiziert (echte, disposable Test-Accounts — 1 Admin, 1 Mitglied, danach gelöscht):** Admin öffnet den Bearbeiten-Dialog eines anderen Mitglieds, sieht dessen selbst gesetzte Telefonnummer korrekt vorausgefüllt, überschreibt sie erfolgreich, die Änderung ist danach in der PROJ-13-Mitgliedersuche sichtbar. `npm test` (95/95) und `npm run test:e2e --project=chromium` (22/22) bleiben grün, `npm run build` sauber.
+
 ## QA Test Results
 
 **Tested:** 2026-07-12
