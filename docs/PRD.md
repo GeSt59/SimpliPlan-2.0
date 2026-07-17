@@ -24,7 +24,7 @@ SimpliPlan hilft Vereinen (z.B. Lions Clubs), den Helfer-Bedarf bei Activities/E
 | P0 (MVP) | Mitglied-Anmeldung zu Zeitbereichen | Planned |
 | P0 (MVP) | Teilnehmer-Übersicht (Admin) | Planned |
 | P0 (MVP) | Profil-Verwaltung | Planned |
-| P1 | Meine Einteilungen (Mitglied-Übersicht) | Planned |
+| P1 | Meine Einteilungen (Mitglied-Übersicht) | Deployed |
 | P0 (MVP) | Mitglieder-Ansicht/Suche | Planned |
 | P0 (MVP) | Kalender-Export (ICS, 1-Klick) | Planned |
 

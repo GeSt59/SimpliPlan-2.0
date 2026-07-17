@@ -1,6 +1,6 @@
 # PROJ-16: Meine Einteilungen (Mitglied-Übersicht eigener Zeitbereich-Zusagen)
 
-## Status: Planned
+## Status: Deployed
 **Created:** 2026-07-17
 **Last Updated:** 2026-07-17
 
@@ -229,4 +229,14 @@ Keine. Ein anfänglicher Testfehlschlag ("Profil-Seite zeigt den Button") stellt
 - **Recommendation:** Deploy möglich.
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-07-17
+**Production URL:** https://simpliplan.toolies.eu/meine-einteilungen (erreichbar über den Button auf https://simpliplan.toolies.eu/profil)
+**Mechanism:** GitHub Actions (`.github/workflows/deploy.yml`) — SSH nach Hetzner bei Push auf `main`, `npm ci` + `npm run build` + PM2-Reload (Prozess "SimpliPlan"). Kein Vercel.
+
+- Pre-Deployment-Checks: `npm run build` sauber, `npm test` 95/95, QA Approved (14/14 AC, 0 Bugs), keine DB-Migration nötig (rein clientseitige Funktion, bestätigt in `/architecture`), keine Secrets im Diff. `npm run lint` weiterhin am vorbestehenden, projektunabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker.
+- Drei Commits gepusht nach `main`: `feat(PROJ-16): Write feature specification...` (`679b95d`), `feat(PROJ-16): Implement frontend...` (`fe08e92`), `test(PROJ-16): Add QA test results...` (`981944d`)
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Workflow "Deploy to Hetzner"
+- Tag `v1.14.0-PROJ-16` erstellt und gepusht
+- Post-Deployment-Verifikation: Server-Checkout auf `981944d` per SSH bestätigt, PM2 frisch neu geladen (Uptime 11s, Restart-Counter erhöht); `https://simpliplan.toolies.eu/profil` und `/meine-einteilungen` liefern beide HTTP 200
+- Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-16, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3–13/15
