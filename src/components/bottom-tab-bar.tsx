@@ -154,7 +154,7 @@ export function BottomTabBar() {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 mx-auto flex h-16 w-full max-w-[600px] items-stretch border-t border-white/10 bg-brand-blue">
+    <nav className="fixed inset-x-0 bottom-0 z-50 mx-auto flex h-16 w-full max-w-[600px] items-stretch border-t border-white/10 bg-brand-blue print:hidden">
       {tabs.map((tab) => {
         const active = tab.isActive(pathname);
         const Icon = tab.icon;

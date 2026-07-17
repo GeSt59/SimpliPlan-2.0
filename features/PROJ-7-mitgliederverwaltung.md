@@ -8,6 +8,8 @@
 
 > **Refinement (2026-07-17):** Neues Feld `telefonnummer` (siehe PROJ-12-Refinement vom selben Tag) wird zusätzlich admin-seitig editierbar — Admin darf die Telefonnummer beliebiger Mitglieder des eigenen Vereins bearbeiten, identisches Muster wie die bereits editierbaren Felder Mitgliedsnummer/Geburtstag/Titel. Kein neuer `/architecture`-Durchlauf nötig (rein additives Formularfeld, keine neuen Berechtigungsfragen), direkt über `/frontend`+`/backend` umgesetzt.
 
+> **Refinement (2026-07-17, Druck-Ansicht):** Neue Fähigkeit: Admin/SU kann die aktuell angezeigte (gefilterte) Mitgliederliste in der Listenform als druckfertiges Mitgliederverzeichnis (Nachname Vorname, E-Mail, Telefonnummer, mit Tabellenlinien) in einem neuen Tab öffnen; der Browser-Druckdialog öffnet sich automatisch. Rein additive, clientseitige Funktion ohne neue Berechtigungsfragen (nutzt exakt die bereits geladenen/gefilterten Daten der aufrufenden Seite) — kein neuer `/architecture`-Durchlauf nötig, direkt über `/frontend` umgesetzt.
+
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Mitglieder-Zugriff auf den eigenen Verein beschränken
 - PROJ-3 (Authentifizierung) — für eingeloggten Admin-Zugriff (`users.admin`), die Verein-Zuordnung des Nutzers und den Supabase-Auth-Account-Mechanismus, der beim manuellen Anlegen wiederverwendet wird
@@ -27,6 +29,7 @@
 - Als Admin möchte ich direkt auf das Profilfoto/die Karte eines Mitglieds klicken, um in den Bearbeiten-Dialog zu gelangen, damit ich nicht extra einen separaten Button treffen muss.
 - Als Admin möchte ich das Profilbild eines Mitglieds hochladen/ersetzen können, damit die Foto-Karten-Ansicht auch für Bestandsmitglieder ohne migriertes Foto nutzbar wird.
 - Als Admin möchte ich ein Mitglied unwiderruflich löschen können (nicht nur deaktivieren), damit ich Karteileichen und irrtümlich angelegte Accounts vollständig entfernen kann.
+- Als Admin möchte ich die aktuell angezeigte Mitgliederliste (Nachname Vorname, E-Mail, Telefonnummer) als druckfertiges Mitgliederverzeichnis mit Tabellenlinien ausdrucken können, damit ich eine Papier-/PDF-Version für Vereinstreffen o.ä. zur Hand habe.
 
 ## Out of Scope
 - Vergabe von SuperUser-Rechten (`users.su`) über die App-UI — der SU setzt das Feld direkt in Supabase (bewusste Nutzerentscheidung), kein Feature dafür in PROJ-7 oder der Roadmap (siehe PROJ-3 Open Questions)
@@ -42,6 +45,9 @@
 - Selbst-Upload des eigenen Profilbilds durch das Mitglied (ohne Admin) — gehört zu PROJ-12 (Profil-Verwaltung); PROJ-7 deckt nur den Admin-seitigen Upload für beliebige Mitglieder des eigenen Vereins ab
 - Bildzuschnitt/-bearbeitung (Crop, Rotation) beim Profilbild-Upload — Bild wird 1:1 wie hochgeladen übernommen, gleiches Muster wie Vereinslogo (PROJ-4) und Kategorie-Bild (PROJ-5)
 - Papierkorb/Wiederherstellen gelöschter Mitglieder — hartes Löschen ist endgültig, kein Soft-Delete
+- Druckansicht in der Foto-Karten-Ansicht — die Druckfunktion ist auf die Listenform beschränkt (Karten sind für ein Tabellen-Verzeichnis mit Tabellenlinien fachlich ungeeignet); Admin muss vor dem Drucken in die Listenform wechseln
+- PDF-Generierung serverseitig — es wird der native Browser-Druckdialog genutzt ("Als PDF speichern" ist bereits eine Standardoption jedes Browser-Druckdialogs), keine eigene PDF-Bibliothek
+- Weitere Spalten im Druck-Verzeichnis (Mitgliedsnummer, Geburtstag, Titel, Admin-Flag, Status) — bewusst exakt auf die drei vom Nutzer vorgegebenen Spalten beschränkt (Nachname Vorname, E-Mail, Telefonnummer)
 
 ## Acceptance Criteria
 
@@ -77,6 +83,9 @@
 - [ ] Angenommen der Admin klickt auf das Papierkorb-Icon einer Mitglieds-Karte, dann erscheint ein Bestätigungsdialog ("Mitglied X unwiderruflich löschen?"); nach Bestätigung werden Auth-Account und `users`-Zeile entfernt und das Mitglied verschwindet aus der Liste
 - [ ] Angenommen der Admin bricht den Lösch-Bestätigungsdialog ab, dann wird nichts gelöscht
 - [ ] Angenommen der Admin versucht, sich selbst (die eigene "Du"-Zeile) zu löschen, dann wird das verhindert (analog zum "letzter Admin"-Schutz — ein Admin kann sich nicht selbst aus der Verwaltung entfernen)
+- [ ] Angenommen der Admin befindet sich in der Listenform, wenn er auf den Drucken-Button klickt, dann öffnet sich ein neuer Tab mit einem druckfertigen Mitgliederverzeichnis (fette Überschrift "Mitgliederverzeichnis", Vereinsname, "Stand [heutiges Datum]", Tabelle mit Tabellenlinien und den Spalten Nachname Vorname / E-Mail / Telefonnummer) und der Browser-Druckdialog öffnet sich automatisch
+- [ ] Angenommen ein Suchbegriff und/oder ein Status-Filter (Nur aktiv/Nur inaktiv) sind aktiv, wenn der Admin druckt, dann enthält das Verzeichnis exakt die dadurch gefilterten Mitglieder (identisch zur gerade angezeigten Liste), sortiert nach Nachname
+- [ ] Angenommen ein Mitglied hat keine Telefonnummer hinterlegt, dann bleibt die entsprechende Tabellenzelle im Verzeichnis leer, ohne Layout-Fehler
 
 ## Edge Cases
 - Admin ist der einzige Admin des Vereins und versucht, sich selbst das Admin-Flag zu entziehen oder sich zu deaktivieren → verhindert (siehe AC), Fehlermeldung erklärt den Grund
@@ -93,6 +102,9 @@
 - Admin löscht ein Mitglied, das gerade eingeloggt ist → Auth-Account wird sofort entfernt, laufende Session des betroffenen Mitglieds wird beim nächsten Request ungültig (Supabase invalidiert den zugehörigen Refresh-Token serverseitig)
 - Wechsel zwischen Foto-Karten- und Listenform während eine Suche/ein Filter aktiv ist → Suchbegriff und Filter bleiben über den Ansichtswechsel hinweg erhalten
 - Profilbild-Upload schlägt wegen Netzwerkfehler fehl → Fehlermeldung, bisheriges Bild bleibt unverändert (identisches Muster wie Vereinslogo-Upload aus PROJ-4)
+- Admin klickt Drucken direkt in der Foto-Karten-Ansicht (Default) → kein Drucken-Button sichtbar, da auf Listenform beschränkt; Admin muss zuerst zur Listenform wechseln
+- Admin bricht den Browser-Druckdialog ab (z.B. Escape/Abbrechen) → nichts passiert, der neue Tab mit dem Verzeichnis bleibt geöffnet, Admin kann ihn manuell schließen oder erneut drucken (Strg+P)
+- Gefilterte Liste ist leer (Suchbegriff ohne Treffer) → Verzeichnis-Tab zeigt eine leere Tabelle statt eines Fehlers
 
 ## Technical Requirements (optional)
 - Security: Zugriff nur für `users.admin = true` des eigenen Vereins ODER `users.su` gesetzt; RLS beschränkt Lese-/Schreibzugriff auf `users`-Zeilen des eigenen Vereins (Cross-Tenant-Schutz, zentrales Projektversprechen) — der SU ist die einzige bewusste, eng geführte Ausnahme von dieser Grenze und muss in `/architecture`/`/backend` entsprechend sorgfältig abgesichert werden (kein pauschaler Bypass, sondern eine explizit auf `su` geprüfte Policy/Route)
@@ -102,6 +114,8 @@
 - Hartes Löschen erfordert wie das Anlegen eine serverseitige API-Route (Service-Role, um den Auth-Account zu entfernen); serverseitiger Verwendungs-Check gegen `einstellungen.eingeteilte_users` vor dem eigentlichen Löschen (analog zum Rollen-/Kategorien-Lösch-Schutz aus PROJ-5/6), sowie serverseitige Sperre gegen Selbst-Löschung
 - Profilbild-Upload: gleiche Constraints wie Vereinslogo/Kategorie-Bild (PNG/JPG/SVG, max. 2 MB), voraussichtlich dieselbe Storage-Bucket `adalo-media` mit einem neuen Pfad-Präfix (z.B. `mitglieder/{user-id}-*`), finale Entscheidung in `/architecture`
 - Feld `users.profile_picture_url` existiert bereits in der DB (bisher ungenutzt seit der Adalo-Migration) — wird für den neuen Upload-Pfad verwendet, analog zu `vereine.vereinslogo_url`/`categories.picture_url`
+- Druckansicht: neue Route `src/app/mitglieder/drucken/page.tsx`, erhält die zu druckenden Daten (bereits gefilterte/sortierte Mitgliederliste + Vereinsname + heutiges Datum) über `sessionStorage` von der aufrufenden Seite (per `window.open`-Aufruf im selben Origin erbt der neue Tab die Session Storage), keine erneute Supabase-Abfrage nötig — vermeidet Divergenz zwischen Anzeige- und Druck-Filterlogik. Route prüft dennoch eigenständig die Admin/SU-Berechtigung (gleicher Zugriffsschutz wie `/mitglieder`), auch wenn ohne gültige `sessionStorage`-Nutzlast nichts Sensibles angezeigt wird
+- Kein neuer Berechtigungs-/RLS-Bedarf: die Druckansicht liest keine eigenen Daten aus Supabase, sondern nur bereits im Browser vorhandene, RLS-gefilterte Daten der aufrufenden Seite
 
 ## Open Questions
 - [x] Soll die Selbst-Änderung (eigenes Admin-Flag / eigener Aktiv-Status) über dieselbe Liste laufen wie bei anderen Mitgliedern, oder braucht es eine separate UI-Behandlung? → entschieden: dieselbe Liste, eigene Zeile erhält zusätzlich ein "Du"-Badge zur Orientierung (siehe Tech Design)
@@ -131,6 +145,9 @@
 | SuperUser sieht alle Mitglieder aller Vereine und hat dieselben Möglichkeiten wie ein Verein-Admin, aber über einen vorgeschalteten Verein-Switcher statt einer vereinsübergreifenden flachen Liste | Nutzerentscheidung im Interview; hält die SU-Ansicht nah am bestehenden Admin-Modell (eine Verein-Kontext-Session statt einer riesigen gemischten Liste aller Vereine) | 2026-07-11 |
 | Vergabe des `su`-Flags erfolgt ausschließlich direkt in Supabase, kein UI-Feature dafür | Nutzerentscheidung im Interview; konsistent mit dem PRD-Rollenmodell ("SuperUser als zentrale Kontrollinstanz") — die SU-Ernennung selbst braucht keinen App-seitigen Mechanismus | 2026-07-11 |
 | "Letzter Admin"-Schutz gilt ausschließlich bei Selbst-Änderung (die handelnde Person ändert ihr eigenes admin-Flag/aktiv), unabhängig davon ob Admin oder SU handelt — bei Fremdänderung durch den SU greift der Schutz nicht | Nutzerentscheidung im Interview; SU trägt hier bewusst die Verantwortung selbst, z.B. um einen Verein gezielt admin-los zu setzen, bevor ein neuer Admin bestimmt wird | 2026-07-11 |
+| **Refinement 2026-07-17 (Druck-Ansicht):** Druckbares Mitgliederverzeichnis (Nachname Vorname, E-Mail, Telefonnummer) wird eingeführt; enthält exakt die aktuell gefilterte/angezeigte Liste (Suchbegriff + Status-Filter), nicht automatisch alle Mitglieder | Nutzerentscheidung im Refinement-Interview: der Admin soll gezielt drucken können, was gerade auf dem Bildschirm sichtbar ist (z.B. nur "Nur aktiv"), statt immer die volle Mitgliederliste zu erzwingen | 2026-07-17 |
+| Drucken-Button ist nur in der Listenform verfügbar, nicht in der Foto-Karten-Ansicht | Ein Tabellen-Verzeichnis mit Tabellenlinien passt fachlich nicht zur Karten-Darstellung; Admin wechselt bei Bedarf kurz in die Listenform | 2026-07-17 |
+| Klick auf Drucken öffnet einen neuen Tab mit der druckfertigen Ansicht und löst automatisch den Browser-Druckdialog aus | Nutzerentscheidung im Refinement-Interview: spart einen manuellen Strg+P-Schritt, "Als PDF speichern" bleibt über den nativen Druckdialog trotzdem verfügbar | 2026-07-17 |
 
 ### Technical Decisions
 <!-- Added by /architecture -->
@@ -159,6 +176,9 @@
 | Header wird für `/mitglieder` auf einen durchgehenden farbigen Balken (`bg-brand-blue`, weißer Titeltext) umgestellt, abweichend vom aktuellen `h1`-Muster von Kategorien/Rollen/Voreinstellungen | Explizite Nutzeranforderung (Bildvorlage); bewusst nur für diese eine Seite geändert, keine rückwirkende Anpassung der anderen Admin-Seiten ohne gesonderten Auftrag (gezielte Änderung statt Bonus-Redesign) | 2026-07-12 |
 | "Neues Mitglied"-Button im Seitenkopf entfällt zugunsten eines schwebenden Rundbuttons (FAB) unten, konsistent mit der Bildvorlage | 1:1-Umsetzung der Nutzeranforderung; funktional identisch (öffnet denselben Anlege-Dialog), nur andere Platzierung/Optik | 2026-07-12 |
 | **Refinement 2026-07-17:** `telefonnummer` als weiteres optionales Feld in den Bearbeiten-Dialog aufgenommen, `PATCH /api/mitglieder/[id]`-Zod-Schema entsprechend erweitert | Identisches additives Muster wie die bestehenden optionalen Felder; keine neue RLS-Policy nötig (spaltenunabhängige Update-Policies) | 2026-07-17 |
+| **Refinement 2026-07-17 (Druck-Ansicht):** Neue Route `src/app/mitglieder/drucken/page.tsx` erhält die Druck-Daten (bereits gefilterte Mitgliederliste, Vereinsname, heutiges Datum) über `sessionStorage`, nicht über URL-Query-Parameter oder eine erneute Supabase-Abfrage | `window.open()` aus demselben Origin erbt die Session Storage des Öffner-Tabs (Standard-Browserverhalten) — dadurch entsteht keine zweite, potenziell abweichende Filter-/Sortierlogik, und es gibt keine Größenbeschränkung wie bei URL-Query-Strings | 2026-07-17 |
+| Die Druck-Route prüft trotzdem eigenständig Admin/SU-Zugriff (gleicher Redirect-zu-"/"-Schutz wie `/mitglieder`), obwohl sie ohne gültige `sessionStorage`-Nutzlast nichts Sensibles anzeigen würde | Verteidigung in der Tiefe, konsistent mit dem projektweiten Prinzip "clientseitige Prüfung reicht nie allein" — auch wenn hier ohnehin keine Datenbankabfrage stattfindet | 2026-07-17 |
+| Drucken via `window.print()` in einem `useEffect` nach dem ersten Render, kein serverseitiges PDF-Rendering | Nutzt den nativen, bereits in jedem Browser vorhandenen Druck-/"Als PDF speichern"-Mechanismus; keine neue Abhängigkeit, kein zusätzlicher Serveraufwand | 2026-07-17 |
 
 ---
 <!-- Sections below are added by subsequent skills -->
@@ -308,6 +328,25 @@ Mitglieder-Seite "/mitglieder"
 - **Fix:** `src/components/ui/dialog.tsx`: `max-h-[90vh]` → `max-h-[90dvh]` (dynamic viewport height, seit Chrome 108 / iOS Safari 15.4 von allen relevanten mobilen Browsern unterstützt) — passt die maximale Dialog-Höhe live an den tatsächlich sichtbaren visuellen Viewport an, inkl. eingeblendeter Tastatur. Wie beim vorherigen Fix bewusst in der geteilten Komponente geändert, nicht nur lokal im Mitglieder-Dialog
 - **Verifikation:** `npm run build` und `npm test` (41/41) laufen weiterhin sauber; das reine CSS-Einheiten-Update verhält sich auf dem Desktop identisch zu vorher (per erneutem Playwright-Check bestätigt: `scrollHeight`/`clientHeight`/`maxScroll` unverändert 958/538/420). Die eigentliche mobile Kern-Ursache (Tastatur-Resize) lässt sich in dieser Umgebung nicht automatisiert nachstellen — Verifikation auf einem echten Android-Gerät steht noch aus (Nutzer gebeten, nach Deployment erneut zu prüfen)
 - **Priority:** Fix vor erneuter Bestätigung durch den Nutzer bereits ausgerollt (siehe Deployment unten), da risikoarm (reine CSS-Einheiten-Änderung, keine Verhaltensänderung außerhalb des Tastatur-Falls)
+
+### Refinement 2026-07-17: Druck-Ansicht (Mitgliederverzeichnis)
+
+**Gebaut:**
+- `src/app/mitglieder/page.tsx`: Neuer Drucken-Button (Printer-Icon) neben dem Listenform/Kartenform-Toggle, nur sichtbar wenn `view === "liste"`. Klick sammelt die aktuell gefilterte Liste (`filteredMitglieder`, respektiert Suchbegriff + Status-Filter), den Vereinsnamen und das heutige Datum (`toLocaleDateString("de-DE")`) in ein Payload-Objekt, schreibt es nach `sessionStorage` (Schlüssel `mitglieder-druck-payload`) und öffnet `/mitglieder/drucken` per `window.open` in einem neuen Tab
+- Neuer State `vereinName`: für SU aus der bereits geladenen `vereine`-Liste abgeleitet, für einen normalen Admin (der nur `vereinId` kennt, keinen Namen) per einmaligem `vereine.select("vereinsname").eq("id", vereinId)`-Aufruf nachgeladen
+- Neue Route `src/app/mitglieder/drucken/page.tsx`: eigenständiger Zugriffsschutz (identisch zu `/mitglieder` — kein Session oder kein `admin`/`su` → Redirect zu "/"), liest die Nutzlast aus `sessionStorage`, rendert eine schlichte Tabelle (`border-collapse`, Spalten Name/E-Mail/Telefonnummer) mit fetter Überschrift "Mitgliederverzeichnis", Vereinsname und "Stand {Datum}"; löst nach dem ersten Render automatisch `window.print()` aus. Fehlt die `sessionStorage`-Nutzlast (z.B. direkter URL-Aufruf ohne vorherigen Klick), erscheint stattdessen ein Hinweistext mit Link zurück zur Mitgliederverwaltung
+- Nebenbei gefundener, zusätzlich gefixter Bug: die bereits deployte, globale Bottom-Tab-Bar (`src/components/bottom-tab-bar.tsx`, PROJ-15) ist `position: fixed` und erschien dadurch auch beim Drucken über dem Seiteninhalt. Fix: `print:hidden` auf das `<nav>`-Element ergänzt — betrifft alle Seiten der App gleichermaßen (analog zum Dialog-Scroll-Fix bewusst in der geteilten Komponente behoben, nicht nur für die neue Druckseite)
+
+**Verifiziert (eigenes, danach vollständig entferntes Playwright-Skript gegen den Production-Build, isolierte Testdaten mit 1 Admin + 2 aktiven + 1 inaktivem Mitglied):**
+- Drucken-Button ist in der Foto-Karten-Ansicht (Default) unsichtbar, erscheint erst nach Wechsel zur Listenform
+- Mit aktivem "Nur aktiv"-Filter enthält das Verzeichnis exakt die 3 aktiven Mitglieder (inkl. des Admins selbst, der ja ebenfalls Mitglied ist), das inaktive Mitglied fehlt korrekt
+- Neuer Tab zeigt Überschrift, Vereinsname, "Stand {Datum}" sowie die Tabelle mit Tabellenlinien (`border-collapse`); ein Mitglied ohne Telefonnummer rendert eine leere Zelle ohne Fehler
+- `window.print()` wird nachweislich automatisch ausgelöst (Stub-Override in der Testumgebung, kein echter Systemdruck nötig)
+- Unauthentifizierter Direktaufruf von `/mitglieder/drucken` leitet korrekt zu "/" um
+- Bottom-Tab-Bar ist unter `page.emulateMedia({ media: "print" })` nachweislich unsichtbar, auf dem Bildschirm weiterhin normal sichtbar
+- 12/12 Checks bestanden; `npm run build` und `npm test` (95/95) bleiben sauber; Cleanup vollständig (0 verbleibende Test-Zeilen)
+
+**Bewusst nicht gebaut:** serverseitige PDF-Generierung (nutzt den nativen Browser-Druckdialog, der "Als PDF speichern" bereits mitbringt); Drucken aus der Foto-Karten-Ansicht (siehe Out of Scope).
 
 ## Backend Implementation Notes
 

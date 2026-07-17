@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { LayoutGrid, List, Plus, Trash2, UserRound } from "lucide-react";
+import { LayoutGrid, List, Plus, Printer, Trash2, UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +50,7 @@ const PICTURE_BUCKET = "adalo-media";
 const MAX_PICTURE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_PICTURE_TYPES = ["image/png", "image/jpeg", "image/svg+xml"];
 const VIEW_STORAGE_KEY = "mitglieder-view";
+const PRINT_STORAGE_KEY = "mitglieder-druck-payload";
 
 type Mitglied = {
   id: number;
@@ -105,6 +106,7 @@ export default function MitgliederPage() {
   const [vereine, setVereine] = useState<Verein[]>([]);
   const [vereineError, setVereineError] = useState<string | null>(null);
   const [vereinId, setVereinId] = useState<number | null>(null);
+  const [vereinName, setVereinName] = useState<string | null>(null);
 
   const [mitglieder, setMitglieder] = useState<Mitglied[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -217,6 +219,31 @@ export default function MitgliederPage() {
   }, [vereinId]);
 
   useEffect(() => {
+    if (!vereinId) {
+      setVereinName(null);
+      return;
+    }
+    const fromSwitcher = vereine.find((v) => v.id === vereinId)?.vereinsname ?? null;
+    if (fromSwitcher) {
+      setVereinName(fromSwitcher);
+      return;
+    }
+    let active = true;
+    supabase
+      .from("vereine")
+      .select("vereinsname")
+      .eq("id", vereinId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setVereinName(data?.vereinsname ?? null);
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vereinId, vereine]);
+
+  useEffect(() => {
     const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
     if (stored === "karten" || stored === "liste") {
       setView(stored);
@@ -229,6 +256,20 @@ export default function MitgliederPage() {
       window.localStorage.setItem(VIEW_STORAGE_KEY, next);
       return next;
     });
+  }
+
+  function handlePrint() {
+    const payload = {
+      vereinsname: vereinName ?? "",
+      stand: new Date().toLocaleDateString("de-DE"),
+      mitglieder: filteredMitglieder.map((m) => ({
+        name: `${m.nachname ?? ""} ${m.vorname ?? ""}`.trim(),
+        email: m.email ?? "",
+        telefonnummer: m.telefonnummer ?? "",
+      })),
+    };
+    window.sessionStorage.setItem(PRINT_STORAGE_KEY, JSON.stringify(payload));
+    window.open("/mitglieder/drucken", "_blank");
   }
 
   async function loadMitglieder(vId: number) {
@@ -484,13 +525,24 @@ export default function MitgliederPage() {
 
         <div className="flex w-full flex-1 flex-col gap-6 border border-gray-400 bg-gray-100 px-4 py-6">
         {vereinId && (
-          <Button
-            onClick={toggleView}
-            className="h-12 w-full gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
-          >
-            {view === "karten" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-            {view === "karten" ? "In Listenform" : "In Kartenform"}
-          </Button>
+          <div className="flex w-full gap-2">
+            <Button
+              onClick={toggleView}
+              className="h-12 flex-1 gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+            >
+              {view === "karten" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+              {view === "karten" ? "In Listenform" : "In Kartenform"}
+            </Button>
+            {view === "liste" && (
+              <Button
+                onClick={handlePrint}
+                aria-label="Mitgliederverzeichnis drucken"
+                className="h-12 w-12 shrink-0 bg-brand-blue text-white hover:bg-brand-blue/90"
+              >
+                <Printer className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
         )}
 
         {isSu && (
