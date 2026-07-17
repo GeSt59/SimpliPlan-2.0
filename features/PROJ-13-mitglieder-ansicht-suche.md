@@ -1,6 +1,6 @@
 # PROJ-13: Mitglieder-Ansicht/Suche
 
-## Status: Planned
+## Status: Architected
 **Created:** 2026-07-17
 **Last Updated:** 2026-07-17
 
@@ -61,8 +61,8 @@
 - Erweiterung der bestehenden Bottom-Tab-Bar-Komponente (PROJ-15) um einen rollenabhängigen 3. Tab für Nicht-Admins
 
 ## Open Questions
-- [ ] Exakte RLS-Policy-Lücke: erlaubt die bestehende PROJ-7-Policy bereits allen Mitgliedern (nicht nur Admins) Lesezugriff auf `users`-Zeilen des eigenen Vereins, oder braucht es eine neue SELECT-Policy? → zu klären in `/architecture`
-- [ ] Exakter Routen-Name der neuen Seite (Vorschlag `/mitgliedersuche`) → final in `/architecture`
+- [x] Exakte RLS-Policy-Lücke: erlaubt die bestehende PROJ-7-Policy bereits allen Mitgliedern (nicht nur Admins) Lesezugriff auf `users`-Zeilen des eigenen Vereins, oder braucht es eine neue SELECT-Policy? → per Introspektion der Live-Datenbank geprüft: **Nein**, die bestehende Policy `users_select_own_verein_admin` greift nur, wenn der Aufrufer selbst Admin ist (`current_user_admin_verein()` filtert intern auf `admin = true`). Ein normales Mitglied sieht aktuell ausschließlich seine eigene Zeile (`users_select_own`). PROJ-13 braucht eine **neue** SELECT-Policy ohne Admin-Einschränkung (siehe Tech Design)
+- [x] Exakter Routen-Name der neuen Seite → entschieden: `/mitgliedersuche`
 
 ## Decision Log
 
@@ -83,12 +83,65 @@
 <!-- Added by /architecture -->
 | Decision | Rationale | Date |
 |----------|-----------|------|
+| Neue Route `/mitgliedersuche` statt Wiederverwendung von `/mitglieder` | Bestätigt die Produktentscheidung: getrennte Route hält Lese-only-Zugriff sauber von den Admin-Schreibrechten (PROJ-7) getrennt; erleichtert außerdem eine eigene, schlankere RLS-Policy statt einer Sonderfall-Verzweigung innerhalb einer einzigen Seite | 2026-07-17 |
+| Neue RLS-Policy `users_select_own_verein_member` (SELECT, alle Nutzer, `verein && current_user_verein()`) plus neue Hilfsfunktion `current_user_verein()` (SECURITY DEFINER, wie `current_user_admin_verein()`, aber ohne `admin = true`-Filter) | Per Introspektion der Live-Datenbank bestätigt: die bestehenden Policies aus PROJ-7 lassen normale Mitglieder aktuell nur die eigene Zeile sehen. Eine neue, eng gefasste Policy (nur SELECT, kein UPDATE) schließt exakt diese Lücke, ohne bestehende Admin-/SU-Policies zu verändern oder Schreibzugriff zu gewähren | 2026-07-17 |
+| Kein neuer API-Endpunkt — direkter Browser→Supabase-Read-Call, identisches Muster wie die Liste in PROJ-7 | Reiner Lesezugriff ohne Geheimnis (kein Service-Role-Key nötig); RLS ist die alleinige Sicherheitsgrenze, konsistent mit dem bisherigen Architektur-Prinzip dieses Projekts | 2026-07-17 |
+| Neue Seite `src/app/mitgliedersuche/page.tsx` als eigenständige Client-Komponente, die den bestehenden Karten-/Listen-Rendering-Code aus `src/app/mitglieder/page.tsx` strukturell wiederverwendet (kopiert, nicht importiert), aber ohne Anlege-/Bearbeiten-/Lösch-Aktionen und ohne Verein-Switcher | Die PROJ-7-Seite ist eng mit den Admin-Aktionen (Dialoge, Mutations-Handlern) verzahnt; eine gemeinsame Komponente würde Berechtigungslogik künstlich verzweigen. Eine eigene, schlankere Seite ist einfacher zu verstehen und zu testen (konsistent mit "Einfachheit zuerst") | 2026-07-17 |
+| Erweiterung von `src/components/bottom-tab-bar.tsx`: Nicht-Admin/Nicht-SU-Nutzer bekommen jetzt zusätzlich zu Activities/Profil einen mittleren 3. Tab (Label = `tab2`, identisch zum bestehenden Admin-Tab-Namen, Icon `Users` wiederverwendet) mit Ziel `/mitgliedersuche`; Admin/SU-Zweig bleibt unverändert (`Lions` → `/mitglieder`) | Wiederverwendung von Label/Icon vermeidet ein zweites Namens-Feld in `vereine` nur für diesen Fall; die Rollenverzweigung (`isAdminOrSu`) existiert in der Komponente bereits und wird lediglich um einen `else`-Zweig ergänzt statt neu aufgebaut | 2026-07-17 |
+| Detail-Dialog ist eine reine Anzeige-Komponente (kein `react-hook-form`, kein Zod-Schema) | Es gibt nichts zu validieren oder zu speichern; ein Formular-Stack wäre unnötige Komplexität für eine reine Ausgabe (konsistent mit "keine Abstraktionen für einmalig verwendeten Code") | 2026-07-17 |
+| Keine neuen npm-Pakete | `@supabase/supabase-js`, `lucide-react`, alle benötigten shadcn/ui-Komponenten (`dialog`, `badge`, `input`, `button`) sind bereits im Projekt vorhanden | 2026-07-17 |
 
 ---
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### A) Component Structure
+
+```
+Bottom-Tab-Bar (bestehend, PROJ-15 — wird erweitert)
+├── Admin/SU: unverändert 5 Tabs, "Lions" → /mitglieder (PROJ-7)
+└── Mitglied (kein Admin, kein SU): NEU 3 Tabs statt 2
+    ├── Activities (bestehend)
+    ├── "Lions" (NEU, mittig, Personen-Icon) → /mitgliedersuche
+    └── Profil (bestehend)
+
+Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
+├── Zugriffsprüfung: keine Session → Redirect zu "/" (kein Admin-/SU-Check nötig, jeder eingeloggte Nutzer darf rein)
+├── Lädt eigenen Verein-Kontext (users.verein[0] des Aufrufers, kein Switcher)
+├── Header-Balken (gleiche Optik wie /mitglieder aus PROJ-7): "Mitgliedersuche", ohne "In Listenform"-Button-Pendant im Header (Toggle sitzt wie bei PROJ-7 darunter)
+├── Suchfeld ("eines von den {N} Mitgliedern suchen...", identisch zu PROJ-7)
+├── Toggle "In Listenform" / "In Kartenform" (Zustand in localStorage, eigener Schlüssel getrennt von PROJ-7)
+├── Ansicht A: Foto-Karten-Grid (Standard) — 2 Spalten
+│   └── Karte je Mitglied: Foto (Platzhalter falls leer) · Du/Admin/Inaktiv-Badges · Name+E-Mail-Overlay · Klick → Detail-Dialog
+│   └── KEIN Papierkorb-Icon (read-only)
+├── Ansicht B: Listenform — Name · E-Mail · Badges · KEIN "Bearbeiten"-Button, ganze Zeile klickbar → Detail-Dialog
+├── Leerzustand ("Noch keine weiteren Mitglieder in deinem Verein" — ohne Anlege-Aktion)
+├── "Keine Treffer"-Zustand bei erfolgloser Suche
+└── Detail-Dialog "Mitglied ansehen" (NEU, reine Anzeige)
+    ├── Foto (groß, oder Platzhalter)
+    ├── Name, Titel (vorher/nachher), Mitgliedsnummer, Geburtstag, E-Mail — alle nur Text, keine Eingabefelder
+    ├── Du/Admin/Inaktiv-Badges
+    └── "Schließen"-Button (kein "Speichern")
+```
+
+### B) Data Model (fachlich, kein Code)
+
+- Keine neue Tabelle. Liest ausschließlich die bereits bestehende `users`-Tabelle (identische Felder wie PROJ-7/12: `vorname`, `nachname`, `email`, `mitgliedsnumer`, `geburtstag`, `titel_nachher`, `vorher_titel`, `aktiv`, `admin`, `profile_picture_url`).
+- Reiner Lesezugriff — PROJ-13 schreibt an keiner Stelle in `users`.
+- Neue Datenbankregel (keine neue Tabelle, aber eine neue Zugriffsregel): jedes eingeloggte Mitglied darf ab jetzt alle `users`-Zeilen seines eigenen Vereins lesen (bisher nur die eigene Zeile), abgegrenzt exakt auf Lesen — Schreibzugriff bleibt unverändert exklusiv Admin/SU/eigene Zeile vorbehalten.
+- "Eigener Verein" wird wie in allen bisherigen Features über `users.auth_user_id = auth.uid()` und darüber `users.verein` bestimmt.
+
+### C) Tech-Entscheidungen (Begründung für PM)
+
+- **Neue, eng gefasste Datenbankregel statt Wiederverwendung der Admin-Regel**: Die bestehende Regel aus PROJ-7 gibt nur Admins Einblick in die Mitgliederliste ihres Vereins. Für PROJ-13 muss *jedes* Mitglied das dürfen — aber ausdrücklich nur lesend. Die neue Regel ist bewusst eine Kopie mit einer Einschränkung weniger (kein Admin-Filter), keine Erweiterung der bestehenden Schreibregeln — Cross-Tenant-Schutz und die strikte Trennung Lesen/Schreiben bleiben vollständig erhalten.
+- **Kein neuer API-Endpunkt nötig**: Anders als beim Anlegen/Löschen in PROJ-7 (die einen Auth-Account-Eingriff mit Service-Role-Key brauchen) ist Lesen ungefährlich genug, um direkt vom Browser aus über die Datenbankregel zu laufen — spart eine Route, ohne Sicherheit zu verlieren.
+- **Eigene Seite statt Erweiterung von `/mitglieder`**: Eine gemeinsame Seite für Admin-Verwaltung und Mitglied-Ansicht hätte bedeutet, Lösch-/Bearbeiten-Buttons pro Rolle ein-/auszublenden — fehleranfälliger als zwei getrennte, einfache Seiten mit klar getrennter Berechtigungslage.
+- **Bottom-Tab-Bar bekommt einen dritten Zweig statt einer neuen Komponente**: Die Rollenverzweigung existiert dort bereits (Admin/SU vs. Mitglied); ein zusätzlicher Tab im Mitglied-Zweig ist eine kleine, lokal begrenzte Änderung an einer bereits bestehenden, funktionierenden Komponente.
+
+### D) Dependencies
+
+- Keine neuen Pakete: `@supabase/supabase-js`, `lucide-react`, `shadcn/ui` (`dialog`, `badge`, `input`, `button`) — alles bereits im Projekt vorhanden.
 
 ## QA Test Results
 _To be added by /qa_
