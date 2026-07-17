@@ -339,3 +339,10 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 ### Erweiterung 2026-07-17: Deployment (Telefonnummer)
 
 Gemeinsamer Deploy mit PROJ-7 und PROJ-12 — siehe PROJ-7 "Erweiterung 2026-07-17: Deployment" für die vollständigen Details (Commit `01fa496`, Tag `v1.12.0-PROJ-7-12-13`, End-to-End-Verifikation in Produktion inkl. `/mitgliedersuche`).
+
+### Refinement 2026-07-17: Deployment (Listenform vereinfacht + Drucken-Button)
+
+**Deployed:** 2026-07-17
+**Production URL:** https://simpliplan.toolies.eu/mitgliedersuche (Listenform) bzw. https://simpliplan.toolies.eu/mitgliedersuche/drucken
+
+Gemeinsam mit der identischen PROJ-7-Änderung in einem Push deployt — siehe PROJ-7 "Refinement 2026-07-17: Deployment (Listenform auf 3 Spalten reduziert)". Commit `feat(PROJ-13): Simplify list view + add print button for members` (`40fb57b`). Post-Deployment-Verifikation: Server-Checkout auf `40fb57b` per SSH bestätigt, PM2 frisch neu geladen; `https://simpliplan.toolies.eu/mitgliedersuche` und `/mitgliedersuche/drucken` liefern beide HTTP 200.

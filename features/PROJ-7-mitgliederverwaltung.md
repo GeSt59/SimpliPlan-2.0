@@ -605,3 +605,15 @@ Keine neuen Bugs gefunden. Ein anfänglicher Testfehlschlag ("Foto card shows th
 - Tag `v1.13.0-PROJ-7` erstellt und gepusht
 - Post-Deployment-Verifikation: Server-Checkout auf `76a852c` per SSH bestätigt; `npm run build`/PM2-Reload liefen nachweislich vollständig durch (PM2-Uptime nach Reload zurückgesetzt, Restart-Counter erhöht); `https://simpliplan.toolies.eu/mitglieder/drucken` liefert HTTP 200 (vorher 404, solange nur `git pull` ohne Rebuild durchgelaufen war)
 - Production-Ready-Essentials weiterhin unverändert (nicht Teil dieser Erweiterung)
+
+### Refinement 2026-07-17: Deployment (Listenform auf 3 Spalten reduziert)
+
+**Deployed:** 2026-07-17
+**Production URL:** https://simpliplan.toolies.eu/mitglieder (Listenform)
+
+- Pre-Deployment-Checks: `npm run build` sauber, `npm test` 95/95, keine neue DB-Migration, keine Secrets im Diff (nur `features/PROJ-7-mitgliederverwaltung.md` und `src/app/mitglieder/page.tsx` gestaged)
+- Zusammen mit PROJ-13 (identische Änderung für die Mitgliedersuche) in einem gemeinsamen Push deployt: Commits `fix(PROJ-7): Simplify list view to 3 plain columns (name/email/phone)` (`3c015ec`) und `feat(PROJ-13): Simplify list view + add print button for members` (`40fb57b`) gepusht nach `main`
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Workflow "Deploy to Hetzner"
+- Post-Deployment-Verifikation: Server-Checkout auf `40fb57b` per SSH bestätigt, PM2 frisch neu geladen (Uptime 9s, Restart-Counter erhöht); `https://simpliplan.toolies.eu/mitglieder` liefert HTTP 200
+- Kein separater Tag für diesen kleinen Korrektur-Fix (nächster regulärer Feature-Tag deckt ihn mit ab)
+- Production-Ready-Essentials weiterhin unverändert (nicht Teil dieser Erweiterung)
