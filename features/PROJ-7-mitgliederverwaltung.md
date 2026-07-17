@@ -584,3 +584,15 @@ Keine neuen Bugs gefunden. Ein anfänglicher Testfehlschlag ("Foto card shows th
 - Tag `v1.12.0-PROJ-7-12-13` erstellt und gepusht
 - **Post-Deployment-Verifikation direkt gegen Produktion** (nicht nur localhost), mit einem frischen, disposablen Admin+Mitglied-Testaccount-Paar (danach vollständig gelöscht): Mitglied setzt eigene Telefonnummer über `https://simpliplan.toolies.eu/profil`; Admin sieht denselben Wert vorausgefüllt in `/mitglieder` und überschreibt ihn; der aktualisierte Wert erscheint korrekt im Detail-Dialog von `/mitgliedersuche` — vollständige End-to-End-Kette PROJ-12→PROJ-7→PROJ-13 in Produktion bestätigt, keine Konsolen-Fehler
 - Production-Ready-Essentials weiterhin unverändert (nicht Teil dieser Erweiterung)
+
+### Erweiterung 2026-07-17: Deployment (Druck-Ansicht Mitgliederverzeichnis)
+
+**Deployed:** 2026-07-17
+**Production URL:** https://simpliplan.toolies.eu/mitglieder (Drucken-Button in Listenform) bzw. https://simpliplan.toolies.eu/mitglieder/drucken
+
+- Pre-Deployment-Checks: `npm run build` sauber, `npm test` 95/95, keine neue DB-Migration nötig (rein clientseitige Funktion), keine Secrets im Diff (nur die vier PROJ-7-relevanten Dateien gestaged, `.claude/settings.json` bewusst ausgeschlossen)
+- Commit `feat(PROJ-7): Add printable Mitgliederverzeichnis (list view)` (`76a852c`) gepusht nach `main`
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Workflow "Deploy to Hetzner"
+- Tag `v1.13.0-PROJ-7` erstellt und gepusht
+- Post-Deployment-Verifikation: Server-Checkout auf `76a852c` per SSH bestätigt; `npm run build`/PM2-Reload liefen nachweislich vollständig durch (PM2-Uptime nach Reload zurückgesetzt, Restart-Counter erhöht); `https://simpliplan.toolies.eu/mitglieder/drucken` liefert HTTP 200 (vorher 404, solange nur `git pull` ohne Rebuild durchgelaufen war)
+- Production-Ready-Essentials weiterhin unverändert (nicht Teil dieser Erweiterung)
