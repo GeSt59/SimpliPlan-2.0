@@ -6,6 +6,8 @@
 
 > **Refinement (2026-07-17):** Neues Feld `telefonnummer` (siehe PROJ-12-Refinement vom selben Tag) wird zusätzlich im read-only Detail-Dialog angezeigt, identisches Platzierungsmuster wie Mitgliedsnummer/Geburtstag. Kein neuer `/architecture`-Durchlauf nötig (rein additives Anzeigefeld, keine neue RLS-Frage — die bestehende `users_select_own_verein_member`-Policy ist spaltenunabhängig und deckt die neue Spalte bereits ab), direkt über `/frontend` umgesetzt.
 
+> **Refinement (2026-07-17, Listenform + Druck):** Analog zur gleichzeitigen PROJ-7-Änderung wird die Listenform auf eine reine 3-Spalten-Übersicht (Nachname Vorname / E-Mail / Telefonnummer) ohne Badges und ohne Klick-Aktion reduziert (der Detail-Dialog bleibt exklusiv über die Foto-Karten-Ansicht erreichbar); zusätzlich bekommt auch das normale Mitglied einen Drucken-Button in der Listenform, identisches Verhalten wie bei PROJ-7 (neuer Tab, druckfertiges Mitgliederverzeichnis, automatischer Druckdialog). Rein additive/vereinfachende, clientseitige Änderung ohne neue Berechtigungsfragen — kein neuer `/architecture`-Durchlauf nötig, direkt über `/frontend` umgesetzt.
+
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Sichtbarkeit strikt auf den eigenen Verein beschränken
 - PROJ-3 (Authentifizierung) — für eingeloggten Mitglied-Zugriff
@@ -20,6 +22,7 @@
 - Als Mitglied möchte ich zwischen Foto-Karten- und Listenform umschalten können, damit ich je nach Situation die passendere Ansicht wähle — analog zur Admin-Ansicht aus PROJ-7.
 - Als Mitglied möchte ich über einen eigenen Tab in der unteren Navigationsleiste direkt zur Mitgliedersuche gelangen, damit ich sie ohne Umweg über das Profil erreiche.
 - Als Mitglied möchte ich ausschließlich Mitglieder meines eigenen Vereins sehen, damit die Vereinstrennung (Cross-Tenant-Schutz) auch hier gewahrt bleibt.
+- Als Mitglied möchte ich die aktuell angezeigte Mitgliederliste (Nachname Vorname, E-Mail, Telefonnummer) als druckfertiges Mitgliederverzeichnis mit Tabellenlinien ausdrucken können, damit ich eine Papier-/PDF-Version zur Hand habe — identisch zur Admin-Funktion aus PROJ-7.
 
 ## Out of Scope
 - Jegliche Schreib-/Bearbeitungsfunktion (Bearbeiten, Anlegen, Löschen, Aktiv-/Admin-Toggle, Profilbild-Upload) — bleibt exklusiv PROJ-7 (Admin) bzw. PROJ-12 (eigenes Profil)
@@ -29,6 +32,8 @@
 - Kalender-Export/Einteilungs-Übersicht pro Mitglied — nicht Teil dieser Suche
 - Bulk-Aktionen jeglicher Art
 - Änderung der bestehenden Admin-Route `/mitglieder` (PROJ-7) — bleibt unverändert, PROJ-13 nutzt eine eigene neue Route
+- Detail-Dialog/Klick-Aktion aus der Listenform heraus — seit dem Refinement vom 2026-07-17 ist die Listenform eine reine, nicht-interaktive 3-Spalten-Übersicht; der Detail-Dialog ist ausschließlich über die Foto-Karten-Ansicht erreichbar
+- Weitere Spalten im Druck-Verzeichnis oder Drucken aus der Foto-Karten-Ansicht — identische Einschränkung wie bei PROJ-7
 
 ## Acceptance Criteria
 
@@ -40,7 +45,8 @@
 - [ ] Angenommen ein Mitglied ruft die Mitgliedersuche auf, dann sieht es standardmäßig die Foto-Karten-Ansicht (2 Spalten) aller Mitglieder seines eigenen Vereins, sortiert nach Nachname
 - [ ] Angenommen der Verein des Mitglieds hat außer ihm selbst noch keine weiteren Mitglieder, dann sieht es einen Leerzustand mit Hinweistext (keine Aktion zum Anlegen, da PROJ-13 read-only ist)
 - [ ] Angenommen das Mitglied gibt einen Suchbegriff ein, dann filtert die Liste live auf Treffer in Vorname, Nachname oder E-Mail
-- [ ] Angenommen das Mitglied klickt auf den Button "In Listenform", dann wechselt die Ansicht zur einfachen Listenform; ein erneuter Klick wechselt zurück zur Foto-Karten-Ansicht; die zuletzt gewählte Ansicht wird gemerkt (analog zu PROJ-7)
+- [ ] Angenommen das Mitglied klickt auf den Button "In Listenform", dann wechselt die Ansicht zu einer reinen 3-Spalten-Übersicht (Nachname Vorname, E-Mail, Telefonnummer) ohne Badges oder Klick-Aktion; ein erneuter Klick wechselt zurück zur Foto-Karten-Ansicht; die zuletzt gewählte Ansicht wird gemerkt (analog zu PROJ-7)
+- [ ] Angenommen das Mitglied befindet sich in der Listenform, dann sieht es einen Drucken-Button, der in einem neuen Tab ein druckfertiges Mitgliederverzeichnis (fette Überschrift "Mitgliederverzeichnis", Vereinsname, "Stand [Datum]", Tabelle mit Tabellenlinien) mit der aktuell gefilterten Liste öffnet und automatisch den Browser-Druckdialog auslöst
 - [ ] Angenommen das Mitglied klickt auf die Karte/Zeile eines Mitglieds, dann öffnet sich ein schreibgeschützter Dialog mit Foto, Vorname, Nachname, E-Mail, Telefonnummer, Mitgliedsnummer, Geburtstag und Titel (vorher/nachher) — ohne Eingabefelder oder Speichern-Button
 - [ ] Angenommen ein Mitglied ist Admin des Vereins, dann erscheint bei ihm in Karte, Liste und Detail-Dialog ein "Admin"-Badge
 - [ ] Angenommen ein Mitglied ist inaktiv (`aktiv = false`), dann erscheint es weiterhin in der Suche, jedoch mit einem "Inaktiv"-Badge
@@ -80,6 +86,7 @@
 | Geburtstag ist im Detail-Dialog sichtbar | Nutzerentscheidung im Interview; in Vereinen häufig gewünscht (z.B. Geburtstagsglückwünsche), konsistent mit den übrigen sichtbaren Stammdaten | 2026-07-17 |
 | Kein Direktkontakt (Mailto-Link, Messaging) im MVP | Nicht Teil der Interview-Anforderung; E-Mail wird nur als Text angezeigt, Kontaktaufnahme läuft weiterhin außerhalb der App | 2026-07-17 |
 | SuperUser nutzt für vereinsübergreifende Verwaltung weiterhin ausschließlich PROJ-7, kein eigener Zugriff auf PROJ-13 | PROJ-13 ist eine reine Mitglied-Funktion für den eigenen Verein; der SU hat über PROJ-7 bereits vollen (und weitergehenden) Zugriff | 2026-07-17 |
+| **Refinement 2026-07-17 (analog zu PROJ-7):** Listenform wird auf exakt 3 Spalten reduziert (Nachname Vorname / E-Mail / Telefonnummer), ohne Badges und ohne Klick-Aktion (Detail-Dialog nur noch über die Foto-Karten-Ansicht erreichbar); zusätzlich Drucken-Button in der Listenform | Nutzerentscheidung im Refinement-Interview: dieselbe Bildvorlage/Anforderung wie bei PROJ-7 soll konsistent auch für normale Mitglieder gelten, nicht nur für Admins | 2026-07-17 |
 | **Refinement 2026-07-17:** Telefonnummer wird im Detail-Dialog angezeigt (gleiche Stelle wie Mitgliedsnummer/Geburtstag), nicht auf der Karte/in der Liste | Konsistent mit der bereits etablierten Platzierung dieser Kategorie von Zusatzfeldern; Karten-Overlay bleibt bewusst auf Name+E-Mail beschränkt (Platzgründe, siehe ursprüngliche Tech-Design-Entscheidung) | 2026-07-17 |
 
 ### Technical Decisions
@@ -172,6 +179,18 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 ### Nachtrag (2026-07-17, nach QA): BUG-1-Fix
 
 `/qa` fand ein Low-Bug: Admin/SU sahen kurz nach dem Login für ~200–800ms fälschlich die 3-Tab-Mitglied-Ansicht (inkl. "Lions" → `/mitgliedersuche` statt `/mitglieder`), bis die asynchrone Rollen-Abfrage in `bottom-tab-bar.tsx` zurückkam — Ursache war, dass der neue Mitglied-`else`-Zweig bereits beim initialen Default-Zustand (`isAdminOrSu = false`) griff. Gefixt durch einen neuen `roleLoaded`-Status: die `<nav>` rendert jetzt erst, wenn die Rolle tatsächlich geladen ist (vorher: sobald nur die Session bekannt war). Re-verifiziert mit einem frischen Testaccount (siehe QA Test Results, BUG-1).
+
+### Refinement 2026-07-17: Listenform vereinfacht + Drucken-Button (analog zu PROJ-7)
+
+**Anlass:** Der Nutzer forderte für PROJ-7 eine vereinfachte Listenform samt Drucken-Button einer Bildvorlage folgend und stellte danach explizit klar, dass "GENAU dieselbe Ansicht" auch dem normalen Mitglied (nicht nur dem Admin) zur Verfügung stehen soll.
+
+**Gebaut (`src/app/mitgliedersuche/page.tsx`):**
+- Listenform von der bisherigen `<li>`-Zeile (Badges, Klick öffnet Detail-Dialog) auf ein reines 3-Spalten-Grid reduziert (`grid-cols-[1fr_1fr_auto]`): Nachname Vorname, E-Mail, Telefonnummer — keine Badges, kein Klick-Handler mehr. Der Detail-Dialog bleibt ausschließlich über die Foto-Karten-Ansicht erreichbar (dort unverändert)
+- Neuer Drucken-Button (Printer-Icon) neben dem Listenform/Kartenform-Toggle, nur sichtbar wenn `view === "liste"` — identisches Verhalten wie bei PROJ-7: sammelt die aktuell gefilterte Liste + Vereinsname + heutiges Datum in `sessionStorage` (Schlüssel `mitgliedersuche-druck-payload`, bewusst ein eigener Schlüssel statt des PROJ-7-Schlüssels, um beide Features unabhängig zu halten) und öffnet `/mitgliedersuche/drucken` per `window.open`
+- Neuer State `vereinName`, einmalig per `vereine.select("vereinsname").eq("id", vereinId)` nachgeladen (kein Verein-Switcher in PROJ-13, daher kein SU-Sonderfall nötig)
+- Neue Route `src/app/mitgliedersuche/drucken/page.tsx`: eigener Zugriffsschutz identisch zu `/mitgliedersuche` selbst (nur Session-Check, **kein** Admin/SU-Erfordernis — jedes Vereinsmitglied darf drucken), sonst strukturell identisch zur PROJ-7-Druckseite (eigene Datei statt gemeinsamer Komponente, konsistent mit der bereits bestehenden Trennung zwischen `/mitglieder` und `/mitgliedersuche`)
+
+**Verifiziert (eigenes, danach entferntes Playwright-Skript, echter nicht-Admin Mitglied-Testaccount + 1 Vereinskollege, isolierte Testdaten):** 11/11 Checks bestanden — Drucken-Button nur in Listenform sichtbar, Telefonnummer und Kollegen-Name korrekt in der Liste sichtbar, kein Mitgliedsnummer-Text mehr, neuer Tab zeigt Überschrift/Vereinsname/beide Mitglieder, `window.print()` automatisch ausgelöst, unauthentifizierter Direktaufruf leitet zu "/" um, Cleanup vollständig. `npm test` (95/95) und `npm run build` bleiben sauber.
 
 ## Backend Implementation Notes
 

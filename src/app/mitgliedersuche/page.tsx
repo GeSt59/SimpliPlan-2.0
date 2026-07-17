@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, List, UserRound } from "lucide-react";
+import { LayoutGrid, List, Printer, UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 
 const VIEW_STORAGE_KEY = "mitgliedersuche-view";
+const PRINT_STORAGE_KEY = "mitgliedersuche-druck-payload";
 
 type Mitglied = {
   id: number;
@@ -41,6 +42,7 @@ export default function MitgliedersuchePage() {
   const [allowed, setAllowed] = useState(false);
   const [ownAuthUserId, setOwnAuthUserId] = useState<string | null>(null);
   const [vereinId, setVereinId] = useState<number | null>(null);
+  const [vereinName, setVereinName] = useState<string | null>(null);
 
   const [mitglieder, setMitglieder] = useState<Mitglied[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -89,6 +91,25 @@ export default function MitgliedersuchePage() {
   }, [vereinId]);
 
   useEffect(() => {
+    if (!vereinId) {
+      setVereinName(null);
+      return;
+    }
+    let active = true;
+    supabase
+      .from("vereine")
+      .select("vereinsname")
+      .eq("id", vereinId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setVereinName(data?.vereinsname ?? null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [vereinId]);
+
+  useEffect(() => {
     const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
     if (stored === "karten" || stored === "liste") {
       setView(stored);
@@ -101,6 +122,20 @@ export default function MitgliedersuchePage() {
       window.localStorage.setItem(VIEW_STORAGE_KEY, next);
       return next;
     });
+  }
+
+  function handlePrint() {
+    const payload = {
+      vereinsname: vereinName ?? "",
+      stand: new Date().toLocaleDateString("de-DE"),
+      mitglieder: filteredMitglieder.map((m) => ({
+        name: `${m.nachname ?? ""} ${m.vorname ?? ""}`.trim(),
+        email: m.email ?? "",
+        telefonnummer: m.telefonnummer ?? "",
+      })),
+    };
+    window.sessionStorage.setItem(PRINT_STORAGE_KEY, JSON.stringify(payload));
+    window.open("/mitgliedersuche/drucken", "_blank");
   }
 
   async function loadMitglieder(vId: number) {
@@ -153,13 +188,24 @@ export default function MitgliedersuchePage() {
 
         <div className="flex w-full flex-1 flex-col gap-6 border border-gray-400 bg-gray-100 px-4 py-6">
           {vereinId && (
-            <Button
-              onClick={toggleView}
-              className="h-12 w-full gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
-            >
-              {view === "karten" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-              {view === "karten" ? "In Listenform" : "In Kartenform"}
-            </Button>
+            <div className="flex w-full gap-2">
+              <Button
+                onClick={toggleView}
+                className="h-12 flex-1 gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+              >
+                {view === "karten" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+                {view === "karten" ? "In Listenform" : "In Kartenform"}
+              </Button>
+              {view === "liste" && (
+                <Button
+                  onClick={handlePrint}
+                  aria-label="Mitgliederverzeichnis drucken"
+                  className="h-12 w-12 shrink-0 bg-brand-blue text-white hover:bg-brand-blue/90"
+                >
+                  <Printer className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
           )}
 
           {!vereinId && (
@@ -197,39 +243,17 @@ export default function MitgliedersuchePage() {
               )}
 
               {!listLoading && hasOtherMitglieder && filteredMitglieder.length > 0 && view === "liste" && (
-                <ul className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2 rounded-lg border bg-white p-4 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
                   {filteredMitglieder.map((m) => (
-                    <li
-                      key={m.id}
-                      onClick={() => setDetailTarget(m)}
-                      className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
-                    >
-                      <div className="flex min-w-0 flex-1 flex-col gap-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="min-w-0 truncate text-sm font-medium text-foreground">
-                            {m.vorname} {m.nachname}
-                          </span>
-                          {m.auth_user_id === ownAuthUserId && (
-                            <Badge variant="secondary" className="shrink-0">
-                              Du
-                            </Badge>
-                          )}
-                          {m.admin && (
-                            <Badge variant="secondary" className="shrink-0">
-                              Admin
-                            </Badge>
-                          )}
-                          {!m.aktiv && (
-                            <Badge variant="outline" className="shrink-0 text-muted-foreground">
-                              Inaktiv
-                            </Badge>
-                          )}
-                        </div>
-                        <span className="truncate text-xs text-muted-foreground">{m.email}</span>
-                      </div>
-                    </li>
+                    <div key={m.id} className="grid grid-cols-[1fr_1fr_auto] gap-4 text-sm text-foreground">
+                      <span className="min-w-0 truncate">
+                        {m.nachname} {m.vorname}
+                      </span>
+                      <span className="min-w-0 truncate">{m.email}</span>
+                      <span className="shrink-0 whitespace-nowrap">{m.telefonnummer}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
 
               {!listLoading && hasOtherMitglieder && filteredMitglieder.length > 0 && view === "karten" && (
