@@ -357,10 +357,13 @@ export default function ProfilPage() {
           </Button>
 
           <Button
+            asChild
             className="h-12 w-full gap-2 bg-brand-gold font-semibold uppercase tracking-wide text-black hover:bg-brand-gold/90"
           >
-            <ListChecks className="h-4 w-4" />
-            Meine Einteilungen
+            <Link href="/meine-einteilungen">
+              <ListChecks className="h-4 w-4" />
+              Meine Einteilungen
+            </Link>
           </Button>
 
           <Button

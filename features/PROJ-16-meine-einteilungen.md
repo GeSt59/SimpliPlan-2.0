@@ -89,13 +89,79 @@ Keine offenen Fragen aus dem Interview — alle Kernentscheidungen wurden getrof
 <!-- Added by /architecture -->
 | Decision | Rationale | Date |
 |----------|-----------|------|
-| _Wird in `/architecture` ergänzt_ | | |
+| Kein neuer API-Endpunkt, keine neue RLS-Policy, keine Migration | Per direkter Introspektion der Live-Datenbank bestätigt: `einstellungen_select_own` und die bestehende `activities`-SELECT-Policy ("Users can view own verein's activities") erlauben bereits jedem eingeloggten Vereinsmitglied (nicht nur Admins) Lesezugriff auf die relevanten Zeilen des eigenen Vereins — exakt das, was PROJ-16 braucht, ohne jede Änderung | 2026-07-17 |
+| Filterung auf "eigene Zusage" (eigene `id` oder `adalo_id` in `eingeteilte_users`) läuft als Datenbank-Filter (contains-Abfrage), nicht als vollständiger Tabellen-Download mit Client-seitiger Filterung | Kleinere übertragene Datenmenge; identisches Filter-Muster bereits etabliert beim Lösch-Verwendungscheck (PROJ-7, `einstellungen.eingeteilte_users.cs.{id}`) | 2026-07-17 |
+| Neue, eigenständige Route/Seite statt Wiederverwendung der bestehenden Übersicht-Seite (`/activities/[id]/uebersicht`, PROJ-10/11) | Unterschiedliche Datenrichtung: die bestehende Seite zeigt ALLE Mitglieder EINER Activity, PROJ-16 zeigt die EIGENEN Zusagen über ALLE Activities hinweg — eine gemeinsame Seite für beide Blickrichtungen zu verbiegen wäre komplexer als eine kleine eigene Seite | 2026-07-17 |
+| Gruppierung, Sortierung und Kommend/Vergangen-Aufteilung bleiben clientseitig, keine serverseitige Aggregation | Persönliche Zusagen-Menge ist typischerweise klein; identisches Prinzip wie bei allen bisherigen Lese-Seiten (PROJ-8-13), kein Bedarf für zusätzliche Backend-Komplexität | 2026-07-17 |
+| Wiederverwendung bestehender Hilfsfunktionen aus `src/lib/activities.ts` (`computeSignupStatus`, `SIGNUP_STATUS_ICON`, `isMemberInRefs`, `formatActivityDateTime`, `startOfTodayIso`) statt neuer, paralleler Implementierungen | Identische Logik wird bereits in PROJ-10/11 verwendet und ist dort bereits verifiziert; vermeidet Logik-Duplikation und Inkonsistenzrisiko (z.B. abweichende Kommend/Vergangen-Grenze) | 2026-07-17 |
+| Kein neues npm-Paket | `@supabase/supabase-js`, `lucide-react`, `shadcn/ui` (`button`) — alles bereits im Projekt vorhanden | 2026-07-17 |
 
 ---
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### A) Component Structure
+
+```
+Profil-Seite "/profil" (bestehend, ERWEITERT)
+└── NEU: Button/Link "Meine Einteilungen" → /meine-einteilungen
+
+Meine-Einteilungen-Seite "/meine-einteilungen" (NEU)
+├── Zugriffsprüfung: nur Session erforderlich (jeder eingeloggte Nutzer,
+│   kein Admin-Erfordernis); unauthentifiziert → Redirect zu "/"
+├── Toggle-Button "Kommend" / "Vergangen" (Standard: Kommend)
+├── Lädt die eigenen Zeitbereich-Zusagen: alle einstellungen-Zeilen, in
+│   deren eingeteilte_users die eigene id oder adalo_id vorkommt, sowie die
+│   zugehörigen Activities (Name, Datum/Zeitraum) — beides bereits durch
+│   bestehende RLS automatisch auf den eigenen Verein beschränkt
+├── Filtert Stub-Zeitbereiche heraus (benötigt=0 oder keine Rolle),
+│   identisch zu PROJ-10/11
+├── Teilt die verbleibenden Zusagen anhand des Activity-Zeitraums in
+│   Kommend/Vergangen (gleiche Grenze wie das bestehende Activities-Archiv)
+├── Gruppiert nach Activity (Name + Datum/Zeit als Überschrift), sortiert:
+│   Kommend aufsteigend (nächste zuerst), Vergangen absteigend (jüngste zuerst)
+├── Je zugesagtem Zeitbereich eine Zeile: Zeitbereich-Label + Status-Icon
+│   (zu wenig/genau richtig/zu viel, identische Icons wie PROJ-10)
+├── Klick auf eine Activity-Gruppe oder eine ihrer Zeilen → Navigation zu
+│   /activities/[id] (bestehende Anmeldung-Seite, Abmelden erfolgt dort)
+└── Je Bereich (Kommend/Vergangen) ein eigener Leerzustand mit Hinweistext,
+    wenn keine Zusagen vorhanden sind
+```
+
+### B) Data Model (fachlich, kein Code)
+
+- Keine neue Tabelle, keine neue Spalte. Nutzt ausschließlich die bereits bestehenden Tabellen `einstellungen` (Zeitbereich-Entität, PROJ-9) und `activities` (PROJ-8).
+- Eine Zusage liegt vor, wenn die eigene `id` oder `adalo_id` in der `eingeteilte_users`-Liste einer `einstellungen`-Zeile vorkommt (identisches id/adalo_id-Fallback-Prinzip wie an allen bisherigen Stellen im Projekt, z.B. PROJ-7-Löschschutz, PROJ-10/11-Namensauflösung).
+- Zur Gruppierung wird jede gefundene Zusage über das `activity`-Feld der `einstellungen`-Zeile der zugehörigen Activity zugeordnet (Name, Start-/Endzeitpunkt für Überschrift und Kommend/Vergangen-Einordnung).
+- Kein neues Feld, kein neuer Status — "Meine Einteilungen" ist eine reine, andere Darstellung bereits vorhandener Daten.
+
+### C) Tech-Entscheidungen (Begründung für PM)
+
+- **Kein Backend-Aufwand nötig**: Die Datenbank erlaubt bereits heute jedem Vereinsmitglied (nicht nur Admins) Lesezugriff auf die Zeitbereiche und Activities des eigenen Vereins — das wurde direkt in der Datenbank überprüft, nicht nur angenommen. PROJ-16 ist dadurch eine reine Oberflächen-Funktion ohne neue Datenbank- oder Sicherheitsänderung.
+- **Eigene neue Seite statt Wiederverwendung der bestehenden Übersicht-Seite**: Die bestehende Seite aus PROJ-10/11 beantwortet "wer ist bei dieser einen Activity alles dabei", PROJ-16 beantwortet "wo bin ich selbst überall dabei" — umgekehrte Blickrichtung über viele Activities hinweg. Eine gemeinsame Seite für beide Fragen zu verbiegen wäre unübersichtlicher als eine kleine, eigenständige neue Seite.
+- **Wiederverwendung bestehender Bausteine** (Status-Icons, Datumsformatierung, Kommend/Vergangen-Grenze, id/adalo_id-Fallback): Vermeidet doppelt gepflegte Logik und stellt sicher, dass sich PROJ-16 exakt wie die bereits vertrauten PROJ-10/11-Regeln verhält.
+- **Alles bleibt clientseitig lesend**: Wie bei allen bisherigen Übersichts-Seiten des Projekts (PROJ-8–13) genügt ein direkter Browser→Datenbank-Lesezugriff; es gibt nichts zu schreiben, also auch keinen Bedarf für einen neuen serverseitigen Endpunkt.
+
+### D) Dependencies
+
+- Keine neuen Pakete: `@supabase/supabase-js`, `lucide-react`, `shadcn/ui` (`button`) — alles bereits im Projekt vorhanden.
+
+## Frontend Implementation Notes
+
+**Gebaut:**
+- `src/app/profil/page.tsx` (GEÄNDERT) — der bereits vorhandene, aber funktionslose Button "Meine Einteilungen" (Icon `ListChecks`, `bg-brand-gold`) wurde verdrahtet (`asChild` + `Link href="/meine-einteilungen"`), kein zweiter Button angelegt
+- `src/app/meine-einteilungen/page.tsx` (NEU) — eigenständige Client-Komponente, Zugriffsschutz identisch zu `/mitgliedersuche` (nur Session, kein Admin-Erfordernis; kein Verein zugeordnet → Hinweistext statt Redirect)
+- Lädt einmalig alle `activities` des eigenen Vereins (RLS-automatisch gescoped) sowie alle `einstellungen`-Zeilen, in deren `eingeteilte_users` die eigene `id` oder `adalo_id` vorkommt (`.or("eingeteilte_users.cs.{id}", "eingeteilte_users.cs.{adalo_id}")`, identisches Filter-Muster wie der PROJ-7-Lösch-Verwendungscheck), gefiltert auf `ben > 0` und vorhandene Rolle (Stub-Zeitbereiche raus)
+- Page-lokale Hilfsfunktion `findActivity` (id/adalo_id-Fallback, analog zu `findMember`/`findRole` aus `src/lib/activities.ts`) löst den `activity`-Verweis jeder Zusage auf die zugehörige Activity auf — bewusst nicht in die geteilte Lib verschoben, da aktuell nur an dieser einen Stelle gebraucht (keine verfrühte Abstraktion)
+- Gruppierung nach Activity-ID, Aufteilung Kommend/Vergangen über `du_zbis` vs. `startOfTodayIso()` (identische Grenze wie das bestehende Activities-Archiv), Sortierung: Kommend aufsteigend, Vergangen absteigend
+- Toggle-Button ("Vergangene anzeigen" / "Kommende anzeigen", Standard: Kommend), keine `localStorage`-Persistenz (nicht in den Acceptance Criteria gefordert, bewusst nicht ergänzt)
+- Jede Activity-Gruppe ist eine Karte (Activity-Name + `formatActivityDateTime`, darunter je Zeitbereich eine Zeile mit Label + Status-Icon aus `SIGNUP_STATUS_ICON`); die gesamte Karte ist ein `<Link href="/activities/[id]">`, Klick auf Gruppe oder eine ihrer Zeilen führt beide zur bestehenden Activity-Anmeldung-Seite
+- Leerzustand je Bereich ("Du hast noch keine kommenden/vergangenen Einteilungen.")
+
+**Verifiziert (eigenes, danach vollständig entferntes Playwright-Skript gegen den Production-Build, isolierte Testdaten — 1 Verein, 1 Test-Mitglied, 1 kommende + 1 vergangene Activity, 5 Zeitbereiche inkl. Stub und einem nicht zugesagten):** 13/13 Checks bestanden — Profil-Button navigiert korrekt zur neuen Seite, Standardansicht zeigt nur die kommende Activity, Toggle wechselt korrekt zu "Vergangen" und zurück, beide zugesagten Zeitbereiche der kommenden Activity erscheinen mit korrektem Status-Icon (19-20 "zu wenig", 20-21 "genau richtig"), Stub-Zeitbereich und ein nicht zugesagter Zeitbereich derselben Activity erscheinen zu Recht nicht, Klick auf eine Gruppe navigiert zur richtigen Activity-Seite, Cleanup vollständig. `npm run build` und `npm test` (95/95) bleiben sauber.
+
+**Kein Backend nötig:** Wie im Tech Design festgehalten, erlauben die bestehenden RLS-Policies bereits jedem Vereinsmitglied Lesezugriff auf die benötigten Daten — kein `/backend`-Durchlauf für dieses Feature erforderlich.
 
 ## QA Test Results
 _To be added by /qa_
