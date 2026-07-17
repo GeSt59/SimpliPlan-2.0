@@ -1,6 +1,6 @@
 # PROJ-13: Mitglieder-Ansicht/Suche
 
-## Status: Architected
+## Status: In Progress
 **Created:** 2026-07-17
 **Last Updated:** 2026-07-17
 
@@ -142,6 +142,27 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 ### D) Dependencies
 
 - Keine neuen Pakete: `@supabase/supabase-js`, `lucide-react`, `shadcn/ui` (`dialog`, `badge`, `input`, `button`) — alles bereits im Projekt vorhanden.
+
+## Frontend Implementation Notes
+
+**Gebaut:**
+- Neue Seite `src/app/mitgliedersuche/page.tsx` — eigenständige, schlanke Client-Komponente (kein Wiederverwenden von `/mitglieder`, siehe Technical Decisions)
+- Zugriffsschutz: keine Session → Redirect zu "/" (kein Admin-/SU-Check, jeder eingeloggte Nutzer darf rein, siehe Tech Design)
+- Lädt eigenen Verein-Kontext aus `users.verein[0]` des Aufrufers, kein Verein-Switcher (kein SU-Anwendungsfall in PROJ-13)
+- Liste lädt `users` gefiltert per `.contains("verein", [vereinId])`, sortiert nach `nachname` — identische Query wie PROJ-7, aber ohne `adalo_id` (nicht benötigt, da kein Lösch-Verwendungs-Check)
+- Suche (Vorname/Nachname/E-Mail) läuft client-seitig auf der geladenen Liste, identisch zu PROJ-7; **kein** Status-Filter (Alle/Aktiv/Inaktiv) — nicht Teil der Spec, inaktive Mitglieder erscheinen immer mit Badge
+- Foto-Karten-Grid (Standard, `grid-cols-4`, identische Optik zu PROJ-7: Overlay Name+E-Mail, Du/Admin/Inaktiv-Badges oben links) und Listenform, Toggle-Zustand in `localStorage` unter eigenem Schlüssel `mitgliedersuche-view` (getrennt von PROJ-7s `mitglieder-view`)
+- **Kein** Papierkorb-Icon, **kein** FAB, **kein** "Neues Mitglied"-Button — rein lesend
+- Klick auf Karte/Zeile öffnet einen neuen read-only Detail-Dialog (`Dialog`, kein `react-hook-form`/Zod): Foto, Name (inkl. Titel vorher/nachher), E-Mail, Mitgliedsnummer (falls gesetzt), Geburtstag (falls gesetzt), Du/Admin/Inaktiv-Badges, "Schließen"-Button
+- `src/components/bottom-tab-bar.tsx` erweitert: Nicht-Admin/Nicht-SU-Zweig bekommt jetzt einen mittleren 3. Tab (Label `tab2`, Icon `Users`, wie beim Admin-Tab) mit Ziel `/mitgliedersuche` statt bisher nur Activities+Profil; Admin/SU-Zweig unverändert
+- `npm run build` läuft sauber durch (`/mitgliedersuche` erscheint in der Routen-Liste, keine TypeScript-Fehler)
+- Unauthentifizierter Zugriff auf `/mitgliedersuche` per Playwright verifiziert: Redirect zu "/" funktioniert wie erwartet
+
+**Contract für `/backend` (noch nicht vorhanden):**
+- Neue RLS-Policy auf `public.users` (SELECT, alle eingeloggten Nutzer, `verein && current_user_verein()`) plus neue Hilfsfunktion `current_user_verein()` (SECURITY DEFINER, wie `current_user_admin_verein()` aus PROJ-7, aber ohne `admin = true`-Filter) — siehe Tech Design. **Ohne diese Policy sieht ein normales Mitglied auf `/mitgliedersuche` aktuell nur seine eigene Zeile**, da die bestehenden Policies aus PROJ-7 Lesezugriff auf andere Mitglieder exklusiv Admins vorbehalten
+- Kein neuer API-Endpunkt nötig (reiner Browser→Supabase-Read, siehe Technical Decisions)
+
+**Nicht end-to-end testbar in `/frontend`:** Die eigentliche Mitgliederliste (Karten/Liste mit mehreren Personen, Badges, Detail-Dialog) kann erst nach der neuen RLS-Policy aus `/backend` mit echten Testdaten sichtbar geprüft werden — identisches Muster wie bei PROJ-7 (Backend-Contract zuerst dokumentiert, dann in `/backend` gebaut und E2E verifiziert).
 
 ## QA Test Results
 _To be added by /qa_

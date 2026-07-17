@@ -130,7 +130,15 @@ export function BottomTabBar() {
             isActive: (p: string) => p === "/kategorien",
           },
         ]
-      : []),
+      : [
+          {
+            key: "lions",
+            label: labels.tab2,
+            href: "/mitgliedersuche",
+            icon: Users,
+            isActive: (p: string) => p === "/mitgliedersuche",
+          },
+        ]),
     {
       key: "profil",
       label: labels.tab5,
