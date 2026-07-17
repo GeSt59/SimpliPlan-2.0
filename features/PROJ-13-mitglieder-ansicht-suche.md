@@ -1,8 +1,8 @@
 # PROJ-13: Mitglieder-Ansicht/Suche
 
-## Status: In Progress
+## Status: Approved
 **Created:** 2026-07-17
-**Last Updated:** 2026-07-17 (Backend)
+**Last Updated:** 2026-07-17 (QA)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Sichtbarkeit strikt auf den eigenen Verein beschränken
@@ -183,7 +183,103 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 **Kein Vitest-Test hinzugefügt:** Es gibt keine neue API-Route zu testen (reiner RLS-Zugriff); die Verifikation lief wie oben beschrieben per direkter SQL-Simulation gegen die Live-Policy, konsistent mit dem bisherigen Projektmuster für RLS-Änderungen (kein Seed-Fixture-Mechanismus, siehe PROJ-1/3–7/10–12).
 
 ## QA Test Results
-_To be added by /qa_
+
+**Tested:** 2026-07-17
+**App URL:** http://localhost:3000
+**Tester:** QA Engineer (AI)
+
+**Methodik:** `npm test` (Vitest) und `npm run test:e2e` (Playwright-Regressionssuite) zuerst ausgeführt. Für die eingeloggten Szenarien (Karten-/Listenansicht, Suche, Badges, Detail-Dialog, Tab-Bar pro Rolle, Cross-Tenant-Isolation, XSS) wurde ein disposable Skript gegen die **Live-Supabase-Datenbank** ausgeführt: 3 isolierte Test-Vereine + 7 echte Test-Accounts (5× Verein A — aktives Mitglied "Du", zweites aktives Mitglied, Admin, inaktives Mitglied, XSS-Payload-Name —, 1× Verein B für Cross-Tenant-Check, 1× Verein C als einziges Mitglied für den Leerzustand) wurden über die Supabase Admin-API angelegt, per echtem UI-Login (Playwright, `chromium`) durchgespielt und danach vollständig wieder gelöscht (verifiziert: 0 verbleibende Test-Zeilen). Identisches Vorgehen wie bei PROJ-7/12/15 (kein Seed-Fixture-Mechanismus, siehe PROJ-1).
+
+### Automatisierte Tests
+- `npm test`: **95/95 grün**, keine Regression
+- `npm run test:e2e` (chromium, isoliert): **21/21 grün**. Der volle Cross-Browser-Lauf (chromium+firefox+webkit gleichzeitig) zeigte 3 sporadische Timeouts auf unrelated Routen (`/activities`, `/activities/archiv`, `/kategorien`, `/register`) — bei isoliertem Re-Run jeweils grün, unterschiedliche Tests betroffen je Durchlauf. Das ist Ressourcen-Flakiness der parallelen Browser-Last auf dieser Maschine (identisches Muster wie das in PROJ-15 dokumentierte WebKit-Flake), **keine PROJ-13-Regression** — keine der betroffenen Routen berührt code, das PROJ-13 geändert hat
+- Neuer Test `tests/PROJ-13-mitglieder-ansicht-suche.spec.ts` (unauthentifizierter Redirect) hinzugefügt, grün
+- Kein neuer Vitest-Unit-Test: keine extrahierte, eigenständig testbare Logik (Suche/Filter ist ein einfacher Inline-`.filter()`, identisches, unextrahiertes Muster wie in PROJ-7 — vollständig durch die manuelle/E2E-Prüfung unten abgedeckt)
+
+### Acceptance Criteria Status
+
+#### AC-1 bis AC-3: Bottom-Tab-Bar
+- [x] Mitglied sieht 3. Tab "Lions" zusätzlich zu Activities/Profil
+- [x] Klick auf "Lions" navigiert zu `/mitgliedersuche`
+- [ ] BUG-1 (Low): Admin/SU-Tab-Leiste zeigt kurzzeitig (~200–800ms, bis die Rollen-Abfrage zurückkommt) fälschlich die 3-Tab-Mitglied-Ansicht mit "Lions" → `/mitgliedersuche`, bevor sie auf die korrekten 5 Tabs mit "Lions" → `/mitglieder` wechselt — siehe Bugs Found
+
+#### AC-4: Standardansicht Foto-Karten
+- [x] Karten-Ansicht ist Standard, zeigt alle 5 Mitglieder von Verein A, sortiert nach Nachname (Aktiv, Bergmann, Chef, Dormant, XSSTest)
+- [x] Dokumentationshinweis (kein Bug): AC-Text sagt "2 Spalten", Implementierung rendert `grid-cols-4` — identisch zum bereits produktiven PROJ-7-Verhalten und dem Mockup `public/Mitgliederverwaltung.jpg`. Empfehlung: AC-Text in einem künftigen `/refine` auf "4 Spalten" korrigieren, kein funktionaler Fehler
+
+#### AC-5: Leerzustand
+- [x] Verein C (nur 1 Mitglied = der Aufrufer selbst) zeigt den Leerzustand-Hinweistext, keine Anlege-Aktion
+
+#### AC-6: Suche
+- [x] Suche nach "Bruno" filtert live auf 1 Treffer
+
+#### AC-7: Ansichts-Toggle + Persistenz
+- [x] Toggle zu Listenform funktioniert
+- [x] Ansicht bleibt nach Page-Reload erhalten (`localStorage`, Schlüssel `mitgliedersuche-view`)
+
+#### AC-8: Detail-Dialog
+- [x] Klick auf Karte/Zeile öffnet read-only Dialog mit Name, E-Mail, Mitgliedsnummer, Geburtstag (am Testnutzer "Bruno Bergmann" verifiziert, der beide optionalen Felder gesetzt hatte)
+- [x] Per Code-Review verifiziert (nicht separat live angeklickt): fehlende Mitgliedsnummer/Geburtstag/Titel werden bedingt ausgeblendet (`{detailTarget.mitgliedsnumer && (...)}`), kein Fehler — Testnutzer "Anna"/"Carla" hatten diese Felder leer
+
+#### AC-9 bis AC-11: Badges
+- [x] "Admin"-Badge bei Carla (admin=true)
+- [x] "Inaktiv"-Badge bei Dora (aktiv=false), Foto/Platzhalter zusätzlich grayscale
+- [x] "Du"-Badge bei Anna (eigene Zeile)
+
+#### AC-12: Cross-Tenant-Isolation
+- [x] UI: Verein-B-Mitglied "Erik" erscheint nie in Annas (Verein A) Kartenansicht (5 statt 6 Karten)
+- [x] Direkter REST-Zugriffstest (siehe Security Audit): bestätigt auch außerhalb der UI
+
+#### AC-13: Unauthentifizierter Zugriff
+- [x] Redirect zu "/" — manuell und per neuem automatisiertem Playwright-Test bestätigt
+
+#### AC-14: Kein Profilbild → Platzhalter
+- [x] Alle Testmitglieder (kein `profile_picture_url` gesetzt) zeigen das `UserRound`-Platzhalter-Icon
+
+### Edge Cases Status
+
+#### EC-1: Suchbegriff ohne Treffer
+- [x] Per Code-Review verifiziert (identische Logik wie PROJ-7, nicht separat live mit einem garantiert leeren Suchbegriff durchgeklickt): `filteredMitglieder.length === 0` rendert "Keine Mitglieder gefunden."
+
+#### EC-2: Ansicht/Suche bleibt bei Toggle erhalten
+- [x] Reload-Persistenz der Ansicht live verifiziert; dass der Suchbegriff selbst einen reinen View-Toggle (ohne Reload) übersteht, ist strukturell verifiziert (`search`-State wird von `toggleView()` nicht angefasst), nicht separat live durchgeklickt
+
+#### EC-3: Fehlende Mitgliedsnummer/Geburtstag/Titel
+- [x] Siehe AC-8
+
+#### EC-4: Cross-Tenant-Direktaufruf
+- [x] Siehe AC-12 / Security Audit
+
+#### EC-5: Zwei Mitglieder mit identischem Namen
+- [~] Nicht live getestet (trivial, E-Mail dient zur Unterscheidung, keine Code-Pfad-Verzweigung dafür vorhanden, die brechen könnte)
+
+### Security Audit Results
+- [x] Authentication: kein Zugriff ohne Login (automatisiert getestet)
+- [x] Authorization/Cross-Tenant: **direkter REST-Aufruf** (nicht nur UI-Klick) als echtes Verein-A-Mitglied gegen `public.users` liefert exakt 5 Zeilen (alle Verein A), 0 Zeilen außerhalb — die neue RLS-Policy hält auch bei umgangener UI
+- [x] Authentication (anonym, kein Session-Token): direkter REST-Aufruf liefert 0 Zeilen — kein Leak an nicht eingeloggte Clients
+- [x] Input validation/XSS: Testmitglied mit Payload-Namen `<img src=x onerror=alert(1)>` als Vorname — rendert als reiner Text (React-Escaping), kein `alert()`-Dialog ausgelöst (per `page.on("dialog")`-Listener bestätigt)
+- [x] Keine neuen Secrets im Client-Bundle: kein neuer API-Endpoint gebaut (Architektur-Entscheidung), Seite nutzt ausschließlich den bereits vorhandenen Anon-Key-Browser-Client — strukturell durch die Architektur ausgeschlossen, nicht separat per Network-Tab-Audit erneut geprüft
+- [ ] Rate Limiting: nicht anwendbar (reiner Lesezugriff über RLS, kein neuer Schreib-/API-Endpoint, siehe Architektur-Entscheidung)
+
+### Bugs Found
+
+#### BUG-1: Admin/SU sieht kurzzeitig die Mitglied-Tab-Leiste mit falschem "Lions"-Ziel
+- **Severity:** Low
+- **Steps to Reproduce:**
+  1. Als Admin oder SuperUser einloggen
+  2. Sofort nach dem Laden einer beliebigen Seite (im Zeitfenster, bevor die asynchrone Rollen-Abfrage in `bottom-tab-bar.tsx` zurückkommt, ca. 200–800ms) die untere Tab-Leiste betrachten oder auf "Lions" klicken
+  3. Erwartet: Tab-Leiste zeigt durchgehend 5 Tabs, "Lions" → `/mitglieder`
+  4. Tatsächlich: Für dieses kurze Zeitfenster zeigt die Leiste den neuen 3-Tab-Mitglied-Zweig (Activities, Lions, Profil) mit "Lions" → `/mitgliedersuche`, bevor sie sich auf den korrekten 5-Tab-Zustand korrigiert
+- **Root Cause (Hinweis für die Entwicklung, nicht behoben):** `src/components/bottom-tab-bar.tsx` — der neue `else`-Zweig für Nicht-Admins greift bereits beim initialen Default-Zustand `isAdminOrSu = false`, nicht erst nach dessen Bestätigung. Vor PROJ-13 bedeutete dasselbe Zeitfenster nur "noch keine Zusatz-Tabs sichtbar" (unvollständig, aber nie falsch); jetzt zeigt es kurzzeitig ein falsches Linkziel
+- **Kein Sicherheitsrisiko:** kein Datenzugriff auf fremde Vereine möglich, `/mitgliedersuche` funktioniert für den Admin technisch korrekt (er sieht nur seine eigenen Vereinsdaten) — lediglich das falsche Ziel für diesen einen Tab in diesem kurzen Fenster
+- **Priority:** Empfehlung: vor dem Deployment fixen (vermutlich günstig zu beheben, z.B. Tab-Liste erst rendern, wenn die Rolle geladen ist) — Priorisierung liegt beim Nutzer
+
+### Summary
+- **Acceptance Criteria:** 14/14 funktional bestanden (1 Low-Bug bei AC-3, 1 reine Dokumentationskorrektur bei AC-4, keine funktionale Auswirkung)
+- **Bugs Found:** 1 total (0 critical, 0 high, 0 medium, 1 low)
+- **Security:** Pass — Cross-Tenant-Schutz per direktem REST-Aufruf verifiziert, kein XSS, kein anonymer Datenzugriff
+- **Production Ready:** YES (kein Critical/High-Bug)
+- **Recommendation:** Deploy möglich; BUG-1 (Low) vor oder kurz nach dem Deployment beheben lassen, da günstig zu fixen und die Admin-UX kurz beeinträchtigt
 
 ## Deployment
 _To be added by /deploy_
