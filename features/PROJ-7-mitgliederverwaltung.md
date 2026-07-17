@@ -48,6 +48,7 @@
 - Druckansicht in der Foto-Karten-Ansicht — die Druckfunktion ist auf die Listenform beschränkt (Karten sind für ein Tabellen-Verzeichnis mit Tabellenlinien fachlich ungeeignet); Admin muss vor dem Drucken in die Listenform wechseln
 - PDF-Generierung serverseitig — es wird der native Browser-Druckdialog genutzt ("Als PDF speichern" ist bereits eine Standardoption jedes Browser-Druckdialogs), keine eigene PDF-Bibliothek
 - Weitere Spalten im Druck-Verzeichnis (Mitgliedsnummer, Geburtstag, Titel, Admin-Flag, Status) — bewusst exakt auf die drei vom Nutzer vorgegebenen Spalten beschränkt (Nachname Vorname, E-Mail, Telefonnummer)
+- Bearbeiten/Löschen von Mitgliedern aus der Listenform heraus — seit dem Refinement vom 2026-07-17 ist die Listenform eine reine, nicht-interaktive 3-Spalten-Übersicht; beide Aktionen sind ausschließlich über die Foto-Karten-Ansicht erreichbar
 
 ## Acceptance Criteria
 
@@ -75,7 +76,8 @@
 - [ ] Angenommen der SuperUser wählt einen Verein aus, dann sieht er dieselbe Mitgliederliste samt aller Aktionen (Suche, Filter, Bearbeiten, Aktiv/Inaktiv, Admin-Flag, manuell anlegen), wie sie ein Admin dieses Vereins sehen würde
 - [ ] Angenommen der SuperUser entfernt das Admin-Flag oder den Aktiv-Status eines anderen Nutzers (nicht sich selbst), auch wenn dieser Nutzer der letzte Admin des gewählten Vereins ist, dann wird die Änderung ohne den "letzter Admin"-Schutz übernommen (dieser Schutz gilt ausschließlich bei Selbst-Änderung, unabhängig von der Rolle des Handelnden)
 - [ ] Angenommen der Admin ruft `/mitglieder` auf, dann sieht er standardmäßig die Foto-Karten-Ansicht (2 Spalten): Portraitfoto (oder Platzhalter ohne Foto), Name und E-Mail als Overlay unten auf dem Foto, Papierkorb-Icon oben rechts
-- [ ] Angenommen der Admin klickt auf den Button "In Listenform", dann wechselt die Ansicht zur einfachen Listenform (wie vor diesem Redesign); ein erneuter Klick wechselt zurück zur Foto-Karten-Ansicht
+- [ ] Angenommen der Admin klickt auf den Button "In Listenform", dann wechselt die Ansicht zu einer reinen 3-Spalten-Übersicht (Nachname Vorname, E-Mail, Telefonnummer) ohne Badges, Mitgliedsnummer, Bearbeiten-Button oder Papierkorb-Icon; ein erneuter Klick wechselt zurück zur Foto-Karten-Ansicht
+- [ ] Angenommen der Admin ist in der Listenform, dann kann er Mitglieder dort weder bearbeiten noch löschen — dafür muss er zur Foto-Karten-Ansicht wechseln
 - [ ] Angenommen der Admin klickt auf das Foto/die Karte eines Mitglieds (in der Foto-Karten-Ansicht), dann öffnet sich derselbe Bearbeiten-Dialog wie über den "Bearbeiten"-Button in der Listenform
 - [ ] Angenommen der Admin lädt im Bearbeiten-Dialog ein neues Profilbild hoch (PNG/JPG/SVG, max. 2 MB), dann wird eine Vorschau angezeigt; nach dem Speichern erscheint das neue Foto in der Foto-Karten-Ansicht
 - [ ] Angenommen der Admin lädt eine ungültige Datei (falsches Format oder zu groß) als Profilbild hoch, dann wird eine Fehlermeldung angezeigt und der Upload abgebrochen, das bisherige Bild bleibt unverändert
@@ -148,6 +150,7 @@
 | **Refinement 2026-07-17 (Druck-Ansicht):** Druckbares Mitgliederverzeichnis (Nachname Vorname, E-Mail, Telefonnummer) wird eingeführt; enthält exakt die aktuell gefilterte/angezeigte Liste (Suchbegriff + Status-Filter), nicht automatisch alle Mitglieder | Nutzerentscheidung im Refinement-Interview: der Admin soll gezielt drucken können, was gerade auf dem Bildschirm sichtbar ist (z.B. nur "Nur aktiv"), statt immer die volle Mitgliederliste zu erzwingen | 2026-07-17 |
 | Drucken-Button ist nur in der Listenform verfügbar, nicht in der Foto-Karten-Ansicht | Ein Tabellen-Verzeichnis mit Tabellenlinien passt fachlich nicht zur Karten-Darstellung; Admin wechselt bei Bedarf kurz in die Listenform | 2026-07-17 |
 | Klick auf Drucken öffnet einen neuen Tab mit der druckfertigen Ansicht und löst automatisch den Browser-Druckdialog aus | Nutzerentscheidung im Refinement-Interview: spart einen manuellen Strg+P-Schritt, "Als PDF speichern" bleibt über den nativen Druckdialog trotzdem verfügbar | 2026-07-17 |
+| **Korrektur (User-Feedback nach erster Umsetzung):** Die Listenform selbst (auf dem Bildschirm, nicht nur der Druck) wird auf exakt 3 Spalten reduziert (Nachname Vorname / E-Mail / Telefonnummer) — keine Badges (Du/Admin/Inaktiv), keine Mitgliedsnummer, kein "Bearbeiten"-Button, kein Papierkorb-Icon mehr in dieser Ansicht | Der Nutzer meinte mit der ursprünglichen Bildvorlage nicht nur die Druckausgabe, sondern auch die Bildschirm-Listenform selbst — beim ersten Umsetzungsversuch missverstanden (nur die Druckansicht gebaut). Explizit nachgefragt und bestätigt: Bearbeiten/Löschen sind in der Listenform künftig gar nicht mehr möglich, dafür muss zur Kartenform gewechselt werden (kein Klick-Handler, keine Aktionen) | 2026-07-17 |
 
 ### Technical Decisions
 <!-- Added by /architecture -->
@@ -290,7 +293,7 @@ Mitglieder-Seite "/mitglieder"
 - Toggle-Button "In Listenform"/"In Kartenform", Zustand in `localStorage` (`mitglieder-view`) gemerkt, Foto-Karten ist der Default
 - Suchfeld-Platzhalter jetzt dynamisch: `eines von den {N} Mitgliedern suchen...`
 - Foto-Karten-Grid (2 Spalten, `aspect-[3/4]`): Foto oder `UserRound`-Platzhalter-Icon, Papierkorb-Icon oben rechts (ausgeblendet auf der eigenen Karte), Du/Admin/Inaktiv-Badges oben links, Name+E-Mail als Verlaufs-Overlay unten, Klick auf die Karte öffnet den Bearbeiten-Dialog (`stopPropagation` auf dem Papierkorb-Icon verhindert Doppelauslösung)
-- Listenform (bestehend) um ein Papierkorb-Icon neben "Bearbeiten" ergänzt (ebenfalls ausgeblendet auf der eigenen Zeile) — Feature-Parität zwischen beiden Ansichten
+- ~~Listenform (bestehend) um ein Papierkorb-Icon neben "Bearbeiten" ergänzt (ebenfalls ausgeblendet auf der eigenen Zeile) — Feature-Parität zwischen beiden Ansichten~~ → **Aufgehoben im Refinement vom 2026-07-17** (Druck-Ansicht): Die Listenform wurde auf eine reine 3-Spalten-Übersicht (Nachname Vorname / E-Mail / Telefonnummer) ohne Bearbeiten/Löschen-Aktionen reduziert, siehe Decision Log
 - FAB (schwebender Rundbutton unten rechts, `bg-brand-gold`) ersetzt den bisherigen "Neues Mitglied"-Button im Header; überlappt bewusst wie in der Bildvorlage die untere Kartenreihe (Standard-FAB-Verhalten, kein Bug)
 - Bearbeiten-Dialog: neues Profilbild-Feld oben (rundes Vorschaubild oder Platzhalter-Icon, "Profilbild ändern"-Link öffnet einen versteckten Datei-Input, PNG/JPG/SVG max. 2 MB, identische Validierung wie Vereinslogo/Kategorie-Bild)
 - Neue Lösch-Bestätigung (`AlertDialog`): zeigt Serverfehler (z.B. "in_use") direkt in der Dialog-Beschreibung an, statt eines separaten Vorab-Checks — einfacher als das zweistufige Rollen/Kategorien-Muster, da die Autorität ohnehin serverseitig liegt
@@ -347,6 +350,12 @@ Mitglieder-Seite "/mitglieder"
 - 12/12 Checks bestanden; `npm run build` und `npm test` (95/95) bleiben sauber; Cleanup vollständig (0 verbleibende Test-Zeilen)
 
 **Bewusst nicht gebaut:** serverseitige PDF-Generierung (nutzt den nativen Browser-Druckdialog, der "Als PDF speichern" bereits mitbringt); Drucken aus der Foto-Karten-Ansicht (siehe Out of Scope).
+
+**Korrektur (User-Feedback, gleicher Tag):** Der erste Umsetzungsversuch hatte die Bildvorlage nur für die neue Druckansicht (`/mitglieder/drucken`) übernommen, die Bildschirm-Listenform selbst aber unverändert gelassen (weiterhin mit Mitgliedsnummer-Text, Du/Admin/Inaktiv-Badges, "Bearbeiten"-Button und Papierkorb-Icon je Zeile). Nutzer stellte klar, dass die Bildvorlage auch für die Bildschirm-Listenform selbst galt.
+
+**Gebaut:** Die Listenform in `src/app/mitglieder/page.tsx` wurde von der bisherigen `<li>`-Zeile (Badges, Mitgliedsnummer, Bearbeiten-Button, Papierkorb-Icon) auf ein reines 3-Spalten-Grid reduziert (`grid-cols-[1fr_1fr_auto]`): Nachname Vorname, E-Mail, Telefonnummer, ohne jegliche Aktion oder Klick-Handler. Bearbeiten/Löschen bleiben ausschließlich über die Foto-Karten-Ansicht erreichbar (dort unverändert). Die Druck-Ansicht (`/mitglieder/drucken`) war davon nicht betroffen, da sie ohnehin bereits exakt diese 3 Spalten zeigte.
+
+**Verifiziert (eigenes, danach entferntes Playwright-Skript, isolierte Testdaten mit 3 Mitgliedern inkl. Telefonnummer/Mitgliedsnummer):** 8/8 Checks bestanden — kein "Bearbeiten"-Button, kein Papierkorb-Icon, kein Mitgliedsnummer-Text in der Listenform mehr sichtbar; Nachname-Vorname-Format, E-Mail und Telefonnummer korrekt angezeigt; Cleanup vollständig. Visuell per Screenshot mit der Bildvorlage abgeglichen — Übereinstimmung bestätigt. `npm test` (95/95) und `npm run build` bleiben sauber.
 
 ## Backend Implementation Notes
 

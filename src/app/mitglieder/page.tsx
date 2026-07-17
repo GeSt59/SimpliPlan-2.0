@@ -626,56 +626,17 @@ export default function MitgliederPage() {
             )}
 
             {!listLoading && hasOtherMitglieder && filteredMitglieder.length > 0 && view === "liste" && (
-              <ul className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 rounded-lg border bg-white p-4 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
                 {filteredMitglieder.map((m) => (
-                  <li
-                    key={m.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
-                  >
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="min-w-0 truncate text-sm font-medium text-foreground">
-                          {m.vorname} {m.nachname}
-                        </span>
-                        {m.auth_user_id === ownAuthUserId && (
-                          <Badge variant="secondary" className="shrink-0">
-                            Du
-                          </Badge>
-                        )}
-                        {m.admin && (
-                          <Badge variant="secondary" className="shrink-0">
-                            Admin
-                          </Badge>
-                        )}
-                        {!m.aktiv && (
-                          <Badge variant="outline" className="shrink-0 text-muted-foreground">
-                            Inaktiv
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {m.email}
-                        {m.mitgliedsnumer ? ` · Mitgliedsnr. ${m.mitgliedsnumer}` : ""}
-                      </span>
-                    </div>
-                    <div className="flex shrink-0 gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEditDialog(m)}>
-                        Bearbeiten
-                      </Button>
-                      {m.auth_user_id !== ownAuthUserId && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => openDeleteDialog(m)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </li>
+                  <div key={m.id} className="grid grid-cols-[1fr_1fr_auto] gap-4 text-sm text-foreground">
+                    <span className="min-w-0 truncate">
+                      {m.nachname} {m.vorname}
+                    </span>
+                    <span className="min-w-0 truncate">{m.email}</span>
+                    <span className="shrink-0 whitespace-nowrap">{m.telefonnummer}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
 
             {!listLoading && hasOtherMitglieder && filteredMitglieder.length > 0 && view === "karten" && (
