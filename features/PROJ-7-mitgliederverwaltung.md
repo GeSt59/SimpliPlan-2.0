@@ -532,3 +532,16 @@ Keine neuen Bugs gefunden. Ein anfänglicher Testfehlschlag ("Foto card shows th
 - Tag `v1.4.0-PROJ-7` erstellt und gepusht
 - Post-Deployment-Verifikation: per SSH bestätigt, dass der Server-Checkout auf `5564703` steht und der PM2-Prozess "SimpliPlan" nach dem Reload online ist (Uptime 64s zum Prüfzeitpunkt); `https://simpliplan.toolies.eu/` und `/mitglieder` liefern beide HTTP 200
 - Production-Ready-Essentials weiterhin unverändert (nicht Teil dieser Erweiterung)
+
+### Erweiterung 2026-07-17: Deployment (Telefonnummer, gemeinsam mit PROJ-12/PROJ-13)
+
+**Deployed:** 2026-07-17
+**Betrifft:** PROJ-7 (Admin-Bearbeiten), PROJ-12 (eigenes Profil, siehe dortige Deployment-Notiz), PROJ-13 (Mitgliedersuche-Anzeige, siehe dortige Deployment-Notiz) — ein gemeinsamer Commit/Push/Tag für alle drei, da alle drei dieselbe neue Spalte und denselben additiven Rollout-Umfang teilen.
+
+- Migration `proj7_12_13_add_telefonnummer` (neue Spalte `public.users.telefonnummer`) vor dem Deploy live angewendet
+- Pre-Deployment-Checks: `npm run build` sauber, `npm test` 95/95, `npm run test:e2e --project=chromium` 22/22, keine Secrets im Diff. `npm run lint` weiterhin am vorbestehenden, unabhängigen Problem (fehlende `eslint.config.js`) gescheitert — kein neuer Blocker
+- Commit `feat(PROJ-7,PROJ-12,PROJ-13): Add Telefonnummer field to profile, admin edit, and member search` (`01fa496`) gepusht nach `main`
+- Deploy ausgelöst durch `git push origin main`, GitHub-Actions-Workflow "Deploy to Hetzner"
+- Tag `v1.12.0-PROJ-7-12-13` erstellt und gepusht
+- **Post-Deployment-Verifikation direkt gegen Produktion** (nicht nur localhost), mit einem frischen, disposablen Admin+Mitglied-Testaccount-Paar (danach vollständig gelöscht): Mitglied setzt eigene Telefonnummer über `https://simpliplan.toolies.eu/profil`; Admin sieht denselben Wert vorausgefüllt in `/mitglieder` und überschreibt ihn; der aktualisierte Wert erscheint korrekt im Detail-Dialog von `/mitgliedersuche` — vollständige End-to-End-Kette PROJ-12→PROJ-7→PROJ-13 in Produktion bestätigt, keine Konsolen-Fehler
+- Production-Ready-Essentials weiterhin unverändert (nicht Teil dieser Erweiterung)

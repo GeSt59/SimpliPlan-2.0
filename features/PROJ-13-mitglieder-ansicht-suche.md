@@ -316,3 +316,7 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 - [x] Echter End-to-End-Smoke-Test mit einem frischen, disposablen Mitglied-Testaccount direkt gegen Produktion (nicht nur localhost): Login → 3-Tab-Leiste (Activities/Lions/Profil) → Klick "Lions" → `/mitgliedersuche` → korrekter Titel → Leerzustand korrekt gerendert (isolierter Test-Verein) → **keine Browser-Konsolen-Fehler**. Testdaten danach vollständig gelöscht (verifiziert)
 
 **Git Tag:** `v1.11.0-PROJ-13`
+
+### Erweiterung 2026-07-17: Deployment (Telefonnummer)
+
+Gemeinsamer Deploy mit PROJ-7 und PROJ-12 — siehe PROJ-7 "Erweiterung 2026-07-17: Deployment" für die vollständigen Details (Commit `01fa496`, Tag `v1.12.0-PROJ-7-12-13`, End-to-End-Verifikation in Produktion inkl. `/mitgliedersuche`).

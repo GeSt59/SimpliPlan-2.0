@@ -332,3 +332,7 @@ Keine.
 - Tag `v1.10.0-PROJ-12` erstellt und gepusht
 - Post-Deployment-Verifikation (read-only, gegen die echte Domain): `/`, `/profil`, `/mitglieder` liefern HTTP 200; `PATCH /api/profil` ohne Authorization-Header liefert 401 (Route korrekt abgesichert); unauthentifizierter Zugriff auf `/profil` redirected per Playwright korrekt zu `/`; keine Browser-Konsolenfehler
 - Production-Ready-Essentials (Error Tracking/Security Headers/Performance/Rate Limiting) weiterhin nicht projektweit eingerichtet — nicht Teil von PROJ-12, betrifft die gesamte App gleichermaßen wie schon bei PROJ-3–11/15
+
+### Erweiterung 2026-07-17: Deployment (Telefonnummer)
+
+Gemeinsamer Deploy mit PROJ-7 und PROJ-13 — siehe PROJ-7 "Erweiterung 2026-07-17: Deployment" für die vollständigen Details (Commit `01fa496`, Tag `v1.12.0-PROJ-7-12-13`, End-to-End-Verifikation in Produktion inkl. `/profil`).
