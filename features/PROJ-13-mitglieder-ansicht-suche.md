@@ -2,7 +2,7 @@
 
 ## Status: In Progress
 **Created:** 2026-07-17
-**Last Updated:** 2026-07-17
+**Last Updated:** 2026-07-17 (Backend)
 
 ## Dependencies
 - PROJ-1 (Supabase Infrastruktur Multi-Tenant + RLS) — für RLS-Policies, die Sichtbarkeit strikt auf den eigenen Verein beschränken
@@ -90,6 +90,8 @@
 | Erweiterung von `src/components/bottom-tab-bar.tsx`: Nicht-Admin/Nicht-SU-Nutzer bekommen jetzt zusätzlich zu Activities/Profil einen mittleren 3. Tab (Label = `tab2`, identisch zum bestehenden Admin-Tab-Namen, Icon `Users` wiederverwendet) mit Ziel `/mitgliedersuche`; Admin/SU-Zweig bleibt unverändert (`Lions` → `/mitglieder`) | Wiederverwendung von Label/Icon vermeidet ein zweites Namens-Feld in `vereine` nur für diesen Fall; die Rollenverzweigung (`isAdminOrSu`) existiert in der Komponente bereits und wird lediglich um einen `else`-Zweig ergänzt statt neu aufgebaut | 2026-07-17 |
 | Detail-Dialog ist eine reine Anzeige-Komponente (kein `react-hook-form`, kein Zod-Schema) | Es gibt nichts zu validieren oder zu speichern; ein Formular-Stack wäre unnötige Komplexität für eine reine Ausgabe (konsistent mit "keine Abstraktionen für einmalig verwendeten Code") | 2026-07-17 |
 | Keine neuen npm-Pakete | `@supabase/supabase-js`, `lucide-react`, alle benötigten shadcn/ui-Komponenten (`dialog`, `badge`, `input`, `button`) sind bereits im Projekt vorhanden | 2026-07-17 |
+| **`/backend`:** Migration direkt auf der produktiven Datenbank angewendet, nach expliziter Nutzerfreigabe im Vorfeld | Kein separates Staging-/Preview-Datenbank-Setup im Projekt vorhanden (identisches Vorgehen wie bei allen bisherigen Migrationen von PROJ-1 bis PROJ-12); die Migration ist rein additiv (neue Funktion + neue SELECT-Policy), verändert keine bestehende Regel | 2026-07-17 |
+| **`/backend`:** Policy-Korrektheit per SQL-Rollenwechsel-Simulation verifiziert statt nur durch Code-Review | Identisches Vorgehen wie der in PROJ-7 dokumentierte Rekursions-Bug-Fund; eine rein gedankliche Prüfung hätte das damalige Rekursionsrisiko nicht zuverlässig ausgeschlossen — die echte Simulation gegen die Live-Daten ist der verlässlichere Nachweis | 2026-07-17 |
 
 ---
 <!-- Sections below are added by subsequent skills -->
@@ -158,11 +160,27 @@ Mitgliedersuche-Seite "/mitgliedersuche" (NEU)
 - `npm run build` läuft sauber durch (`/mitgliedersuche` erscheint in der Routen-Liste, keine TypeScript-Fehler)
 - Unauthentifizierter Zugriff auf `/mitgliedersuche` per Playwright verifiziert: Redirect zu "/" funktioniert wie erwartet
 
-**Contract für `/backend` (noch nicht vorhanden):**
-- Neue RLS-Policy auf `public.users` (SELECT, alle eingeloggten Nutzer, `verein && current_user_verein()`) plus neue Hilfsfunktion `current_user_verein()` (SECURITY DEFINER, wie `current_user_admin_verein()` aus PROJ-7, aber ohne `admin = true`-Filter) — siehe Tech Design. **Ohne diese Policy sieht ein normales Mitglied auf `/mitgliedersuche` aktuell nur seine eigene Zeile**, da die bestehenden Policies aus PROJ-7 Lesezugriff auf andere Mitglieder exklusiv Admins vorbehalten
+**Contract für `/backend` (zum Zeitpunkt von `/frontend` noch nicht vorhanden — mittlerweile umgesetzt, siehe Backend Implementation Notes unten):**
+- Neue RLS-Policy auf `public.users` (SELECT, alle eingeloggten Nutzer, `verein && current_user_verein()`) plus neue Hilfsfunktion `current_user_verein()` (SECURITY DEFINER, wie `current_user_admin_verein()` aus PROJ-7, aber ohne `admin = true`-Filter) — siehe Tech Design. **Ohne diese Policy sah ein normales Mitglied auf `/mitgliedersuche` nur seine eigene Zeile**, da die bestehenden Policies aus PROJ-7 Lesezugriff auf andere Mitglieder exklusiv Admins vorbehalten
 - Kein neuer API-Endpunkt nötig (reiner Browser→Supabase-Read, siehe Technical Decisions)
 
-**Nicht end-to-end testbar in `/frontend`:** Die eigentliche Mitgliederliste (Karten/Liste mit mehreren Personen, Badges, Detail-Dialog) kann erst nach der neuen RLS-Policy aus `/backend` mit echten Testdaten sichtbar geprüft werden — identisches Muster wie bei PROJ-7 (Backend-Contract zuerst dokumentiert, dann in `/backend` gebaut und E2E verifiziert).
+**Nicht end-to-end testbar in `/frontend`:** Die eigentliche Mitgliederliste (Karten/Liste mit mehreren Personen, Badges, Detail-Dialog) konnte erst nach der neuen RLS-Policy aus `/backend` mit echten Testdaten sichtbar geprüft werden — identisches Muster wie bei PROJ-7 (Backend-Contract zuerst dokumentiert, dann in `/backend` gebaut und verifiziert). Vollständige UI-E2E-Verifikation mit einem echten, eingeloggten Mitglied-Account folgt in `/qa`.
+
+## Backend Implementation Notes
+
+**Gebaut:**
+- Migration `proj13_users_select_own_verein_member` per `apply_migration` auf der Live-Datenbank (Projekt "SimpliPlan") angewendet, nach expliziter Nutzerfreigabe (siehe Decision Log)
+- Neue Hilfsfunktion `public.current_user_verein()` — `SQL`, `SECURITY DEFINER`, `STABLE`, `search_path = public`, exakte strukturelle Kopie von `current_user_admin_verein()` (PROJ-7), aber ohne den `admin = true`-Filter: gibt das `verein`-Array der aufrufenden Person zurück, unabhängig vom Admin-Status
+- Neue Policy `users_select_own_verein_member` (`FOR SELECT`, `USING (verein && current_user_verein())`) auf `public.users` — rein additiv, keine bestehende Policy verändert oder entfernt
+- Kein neuer API-Endpunkt (Architektur-Entscheidung bestätigt: reiner Lesezugriff, RLS ist die Sicherheitsgrenze, kein Service-Role-Key nötig) — die bereits im Frontend gebaute Seite `src/app/mitgliedersuche/page.tsx` braucht keine Anpassung, ihr direkter Browser→Supabase-Read-Call greift jetzt automatisch
+
+**Verifiziert (direkt gegen die Live-Datenbank, per SQL-Rollenwechsel-Simulation analog zu PROJ-7):**
+- Als ein echtes, nicht-admin Mitglied von Verein 1 simuliert (`SET LOCAL ROLE authenticated` + `request.jwt.claims` auf dessen `auth_user_id`, innerhalb `BEGIN...ROLLBACK`, keine Datenänderung): `SELECT * FROM public.users` liefert jetzt 34 Zeilen (alle Mitglieder von Verein 1) statt vorher nur der eigenen Zeile
+- Cross-Tenant-Schutz bestätigt: dieselbe Simulation liefert ausschließlich Zeilen mit `verein = {1}`, keine Zeilen der anderen in der DB vorhandenen Vereine (u.a. 61, 37, 27, 68 und weitere Alt-/Testvereine aus der Adalo-Migration)
+- Keine Rekursion (das aus PROJ-7 bekannte "infinite recursion"-Risiko bei selbstreferenzierenden `users`-Policies) — durch die `SECURITY DEFINER`-Hilfsfunktion strukturell ausgeschlossen, identisches Muster wie die bereits produktiv laufende `current_user_admin_verein()`
+- `get_advisors` (security) nach der Migration geprüft: keine neuen ERROR-Findings; die neue Funktion erzeugt dieselben (bereits vorher bei `current_user_admin_verein()`/`current_user_is_su()` bestehenden) INFO/WARN-Hinweise zu öffentlich aufrufbaren `SECURITY DEFINER`-RPC-Funktionen — bewusst in Kauf genommen, identisches, bereits akzeptiertes Muster, keine neue Risikokategorie
+
+**Kein Vitest-Test hinzugefügt:** Es gibt keine neue API-Route zu testen (reiner RLS-Zugriff); die Verifikation lief wie oben beschrieben per direkter SQL-Simulation gegen die Live-Policy, konsistent mit dem bisherigen Projektmuster für RLS-Änderungen (kein Seed-Fixture-Mechanismus, siehe PROJ-1/3–7/10–12).
 
 ## QA Test Results
 _To be added by /qa_
