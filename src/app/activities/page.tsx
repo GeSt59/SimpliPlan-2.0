@@ -241,7 +241,7 @@ export default function ActivitiesPage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") router.push(`/activities/${a.id}`);
                   }}
-                  className="flex cursor-pointer items-stretch gap-3 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
+                  className="flex cursor-pointer items-stretch gap-3 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
                 >
                   <div className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-white">
                     {pictureUrl && (
@@ -303,7 +303,7 @@ export default function ActivitiesPage() {
           </ul>
         )}
 
-        <Button asChild variant="outline" className="font-semibold uppercase tracking-wide">
+        <Button asChild className="bg-brand-gold font-semibold uppercase tracking-wide text-black shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-gold/90">
           <Link href="/activities/archiv">Archiv anzeigen</Link>
         </Button>
         </div>

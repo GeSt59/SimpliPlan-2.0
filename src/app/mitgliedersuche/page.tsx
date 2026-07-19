@@ -191,7 +191,7 @@ export default function MitgliedersuchePage() {
             <div className="flex w-full gap-2">
               <Button
                 onClick={toggleView}
-                className="h-12 flex-1 gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+                className="h-12 flex-1 gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-blue/90"
               >
                 {view === "karten" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
                 {view === "karten" ? "In Listenform" : "In Kartenform"}
@@ -243,7 +243,7 @@ export default function MitgliedersuchePage() {
               )}
 
               {!listLoading && hasOtherMitglieder && filteredMitglieder.length > 0 && view === "liste" && (
-                <div className="flex flex-col gap-2 rounded-lg border bg-white p-4 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+                <div className="flex flex-col gap-2 rounded-lg border bg-white p-4 shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
                   {filteredMitglieder.map((m) => (
                     <div key={m.id} className="grid grid-cols-[1fr_1fr_auto] gap-4 text-sm text-foreground">
                       <span className="min-w-0 truncate">
@@ -311,7 +311,7 @@ export default function MitgliedersuchePage() {
             </>
           )}
 
-          <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+          <Button asChild variant="outline" className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-semibold uppercase tracking-wide">
             <Link href="/">Zurück</Link>
           </Button>
         </div>

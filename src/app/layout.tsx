@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de" className={`${rubik.variable} ${raleway.variable}`}>
-      <body className="antialiased font-body">
+      <body className="antialiased font-body" suppressHydrationWarning>
         {children}
         <BottomTabBar />
       </body>

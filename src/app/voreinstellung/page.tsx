@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -57,6 +59,8 @@ const settingsSchema = z.object({
 type SettingsValues = z.infer<typeof settingsSchema>;
 
 export default function VereinseinstellungenPage() {
+  const router = useRouter();
+
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [vereinId, setVereinId] = useState<number | null>(null);
@@ -221,6 +225,7 @@ export default function VereinseinstellungenPage() {
       setLogoPreview(null);
       initialFreischaltcodeRef.current = values.freischaltcode;
       setSuccess(true);
+      router.push("/profil");
     } catch {
       setError("Server nicht erreichbar. Bitte versuche es später erneut.");
     } finally {
@@ -254,12 +259,22 @@ export default function VereinseinstellungenPage() {
   }
 
   return (
-    <main className="flex min-h-screen justify-center bg-background px-4 py-10">
-      <div className="flex w-full max-w-lg flex-col gap-8">
-        <h1 className="font-heading text-2xl font-bold text-brand-blue">Vereinseinstellungen</h1>
+    <main className="flex min-h-screen justify-center bg-background">
+      <div className="flex w-full max-w-[600px] flex-col pb-16">
+        <div className="relative bg-brand-blue px-4 py-3 text-center">
+          <Link
+            href="/profil"
+            aria-label="Zurück zu Profil"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </Link>
+          <h1 className="font-heading text-[21px] font-medium text-white">Vereinseinstellungen</h1>
+        </div>
 
+        <div className="flex w-full flex-1 flex-col gap-4 border border-gray-400 bg-gray-100 px-4 py-6">
         <Form {...form}>
-          <form className="flex flex-col gap-6" onSubmit={form.handleSubmit(onSubmit)}>
+          <form className="flex flex-col gap-4" onSubmit={form.handleSubmit(onSubmit)}>
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -271,7 +286,7 @@ export default function VereinseinstellungenPage() {
               </Alert>
             )}
 
-            <section className="flex flex-col gap-4">
+            <section className="flex flex-col gap-4 rounded-lg border border-brand-blue bg-white p-4">
               <h2 className="font-heading text-base font-semibold text-brand-blue">Stammdaten</h2>
 
               <FormField
@@ -308,7 +323,7 @@ export default function VereinseinstellungenPage() {
               </div>
             </section>
 
-            <section className="flex flex-col gap-4">
+            <section className="flex flex-col gap-4 rounded-lg border border-brand-blue bg-white p-4">
               <h2 className="font-heading text-base font-semibold text-brand-blue">Navigations-Tabs</h2>
               {TAB_FIELDS.map((name) => (
                 <FormField
@@ -328,7 +343,7 @@ export default function VereinseinstellungenPage() {
               ))}
             </section>
 
-            <section className="flex flex-col gap-4">
+            <section className="flex flex-col gap-4 rounded-lg border border-brand-blue bg-white p-4">
               <h2 className="font-heading text-base font-semibold text-brand-blue">Freischaltcode</h2>
               <FormField
                 control={form.control}
@@ -345,19 +360,13 @@ export default function VereinseinstellungenPage() {
               />
             </section>
 
-            <div className="mt-2 flex flex-col gap-3">
-              <Button
-                type="submit"
-                disabled={loading}
-                className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
-              >
-                {loading ? "Wird gespeichert..." : "Speichern"}
-              </Button>
-
-              <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
-                <Link href="/">Zurück</Link>
-              </Button>
-            </div>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="mt-2 h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+            >
+              {loading ? "Wird gespeichert..." : "Speichern"}
+            </Button>
           </form>
         </Form>
 
@@ -376,6 +385,7 @@ export default function VereinseinstellungenPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        </div>
       </div>
     </main>
   );

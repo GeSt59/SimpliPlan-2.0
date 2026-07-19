@@ -174,7 +174,7 @@ export default function ActivityNeuPage() {
               href={video.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-md bg-brand-gold p-3 text-black hover:bg-brand-gold/90"
+              className="flex items-center gap-2 rounded-md border border-brand-blue bg-brand-gold p-3 text-black hover:bg-brand-gold/90 focus:border-2 focus:border-brand-gold focus:outline-none"
             >
               <PlayCircle className="h-6 w-6 shrink-0" />
               <span className="flex flex-col">
@@ -198,7 +198,7 @@ export default function ActivityNeuPage() {
             <Button
               type="submit"
               disabled={saving || !hasCategories}
-              className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+              className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
             >
               {saving ? "Wird gespeichert..." : "Weiter zu den Zeitbereichen"}
             </Button>

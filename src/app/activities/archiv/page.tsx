@@ -152,7 +152,7 @@ export default function ActivitiesArchivPage() {
             {filteredActivities.map((a) => {
               const pictureUrl = resolveCategoryPicture(categories, a.category);
               return (
-                <li key={a.id} className="flex items-stretch gap-3 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+                <li key={a.id} className="flex items-stretch gap-3 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
                   <div className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-white">
                     {pictureUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -184,7 +184,7 @@ export default function ActivitiesArchivPage() {
           </ul>
         )}
 
-        <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+        <Button asChild variant="outline" className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-semibold uppercase tracking-wide">
           <Link href="/activities">Zurück zu Activities</Link>
         </Button>
         </div>

@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const LABEL_MAX_LENGTH = 20;
+const LABEL_MAX_LENGTH = 30;
 
 type ZeitbereichRow = {
   key: string;
@@ -398,7 +398,7 @@ export default function ZeitbereichePage() {
 
         <ul className="flex flex-col gap-3">
           {rows.map((row) => (
-            <li key={row.key} className="flex flex-col gap-2 rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+            <li key={row.key} className="flex flex-col gap-2 rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -477,7 +477,7 @@ export default function ZeitbereichePage() {
           ))}
         </ul>
 
-        <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+        <Button asChild variant="outline" className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-semibold uppercase tracking-wide">
           <Link href={`/activities/${activityId}`}>Zurück zur Activity</Link>
         </Button>
         </div>

@@ -323,11 +323,11 @@ export default function KategorienPage() {
   return (
     <div className="flex min-h-screen justify-center bg-background">
       <div className="flex w-full max-w-[600px] flex-col pb-16">
-        <header className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-2 text-white">
+        <header className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-3 text-white">
           <Link href="/" aria-label="Zurück">
             <ArrowLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-center font-heading text-[15px] font-medium">Kategorien ändern</h1>
+          <h1 className="text-center font-heading text-[21px] font-medium">Kategorien ändern</h1>
           <span />
         </header>
 
@@ -349,7 +349,7 @@ export default function KategorienPage() {
             {kategorien.map((kategorie) => (
               <li
                 key={kategorie.id}
-                className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
+                className="flex items-center gap-3 rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
               >
                 <button
                   type="button"
@@ -443,7 +443,7 @@ export default function KategorienPage() {
                 <Button
                   type="submit"
                   disabled={saving}
-                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-blue/90"
                 >
                   {saving ? "Wird gespeichert..." : "Speichern"}
                 </Button>

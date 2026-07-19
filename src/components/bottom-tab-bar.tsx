@@ -149,7 +149,7 @@ export function BottomTabBar() {
       label: labels.tab5,
       href: "/profil",
       icon: CircleUser,
-      isActive: (p) => p === "/profil",
+      isActive: (p) => p === "/profil" || p === "/voreinstellung" || p === "/meine-einteilungen",
     },
   ];
 

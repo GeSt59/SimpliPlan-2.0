@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { KeyRound, ListChecks, Pencil, Power, Settings, UserRound } from "lucide-react";
+import { ArrowLeft, KeyRound, ListChecks, Pencil, Power, Settings, UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -310,12 +310,19 @@ export default function ProfilPage() {
   return (
     <main className="flex min-h-screen justify-center bg-background">
       <div className="flex w-full max-w-[600px] flex-col pb-16">
-        <div className="bg-brand-blue px-4 py-3 text-center">
+        <div className="relative bg-brand-blue px-4 py-3 text-center">
+          <Link
+            href="/activities"
+            aria-label="Zurück zu Activities"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </Link>
           <h1 className="font-heading text-[21px] font-medium text-white">Profil</h1>
         </div>
 
         <div className="flex w-full flex-1 flex-col gap-5 border border-gray-400 bg-gray-100 px-4 py-6">
-          <div className="relative flex flex-col items-center gap-2 overflow-hidden rounded-lg border bg-white p-6 text-center shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+          <div className="relative flex flex-col items-center gap-2 overflow-hidden rounded-lg border bg-white p-6 text-center shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
             {vereinslogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -350,7 +357,7 @@ export default function ProfilPage() {
 
           <Button
             onClick={openEditDialog}
-            className="h-12 w-full gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+            className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
           >
             <Pencil className="h-4 w-4" />
             Profil ändern
@@ -358,7 +365,7 @@ export default function ProfilPage() {
 
           <Button
             asChild
-            className="h-12 w-full gap-2 bg-brand-gold font-semibold uppercase tracking-wide text-black hover:bg-brand-gold/90"
+            className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] gap-2 bg-brand-gold font-semibold uppercase tracking-wide text-black hover:bg-brand-gold/90"
           >
             <Link href="/meine-einteilungen">
               <ListChecks className="h-4 w-4" />
@@ -369,7 +376,7 @@ export default function ProfilPage() {
           <Button
             onClick={openPasswordDialog}
             variant="outline"
-            className="h-12 w-full gap-2 font-semibold uppercase tracking-wide"
+            className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] gap-2 font-semibold uppercase tracking-wide"
           >
             <KeyRound className="h-4 w-4" />
             Passwort ändern
@@ -378,7 +385,7 @@ export default function ProfilPage() {
           {isAdmin && (
             <Button
               asChild
-              className="h-12 w-full gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+              className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
             >
               <Link href="/voreinstellung">
                 <Settings className="h-4 w-4" />
@@ -390,7 +397,7 @@ export default function ProfilPage() {
           <Button
             onClick={handleLogout}
             variant="outline"
-            className="h-12 w-full gap-2 border-brand-gold font-semibold uppercase tracking-wide text-brand-gold hover:bg-brand-gold/10"
+            className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] gap-2 border-brand-gold font-semibold uppercase tracking-wide text-brand-gold hover:bg-brand-gold/10"
           >
             <Power className="h-4 w-4" />
             Logout
@@ -554,7 +561,7 @@ export default function ProfilPage() {
                 <Button
                   type="submit"
                   disabled={editSaving}
-                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-blue/90"
                 >
                   {editSaving ? "Wird gespeichert..." : "Speichern"}
                 </Button>
@@ -610,7 +617,7 @@ export default function ProfilPage() {
                 <Button
                   type="submit"
                   disabled={passwordSaving}
-                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-blue/90"
                 >
                   {passwordSaving ? "Wird geändert..." : "Ändern"}
                 </Button>

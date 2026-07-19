@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { LayoutGrid, List, Plus, Printer, Trash2, UserRound } from "lucide-react";
+import { ArrowLeft, LayoutGrid, List, Plus, Printer, Trash2, UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +49,6 @@ import {
 const PICTURE_BUCKET = "adalo-media";
 const MAX_PICTURE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_PICTURE_TYPES = ["image/png", "image/jpeg", "image/svg+xml"];
-const VIEW_STORAGE_KEY = "mitglieder-view";
 const PRINT_STORAGE_KEY = "mitglieder-druck-payload";
 
 type Mitglied = {
@@ -243,19 +242,8 @@ export default function MitgliederPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vereinId, vereine]);
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
-    if (stored === "karten" || stored === "liste") {
-      setView(stored);
-    }
-  }, []);
-
   function toggleView() {
-    setView((prev) => {
-      const next: View = prev === "karten" ? "liste" : "karten";
-      window.localStorage.setItem(VIEW_STORAGE_KEY, next);
-      return next;
-    });
+    setView((prev) => (prev === "karten" ? "liste" : "karten"));
   }
 
   function handlePrint() {
@@ -519,7 +507,14 @@ export default function MitgliederPage() {
   return (
     <main className="flex min-h-screen justify-center bg-background">
       <div className="flex w-full max-w-[600px] flex-col pb-16">
-        <div className="bg-brand-blue px-4 py-3 text-center">
+        <div className="relative bg-brand-blue px-4 py-3 text-center">
+          <Link
+            href="/activities"
+            aria-label="Zurück zu Activities"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </Link>
           <h1 className="font-heading text-[21px] font-medium text-white">Mitgliederverwaltung</h1>
         </div>
 
@@ -528,7 +523,7 @@ export default function MitgliederPage() {
           <div className="flex w-full gap-2">
             <Button
               onClick={toggleView}
-              className="h-12 flex-1 gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+              className="h-12 flex-1 gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-blue/90"
             >
               {view === "karten" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
               {view === "karten" ? "In Listenform" : "In Kartenform"}
@@ -626,7 +621,7 @@ export default function MitgliederPage() {
             )}
 
             {!listLoading && hasOtherMitglieder && filteredMitglieder.length > 0 && view === "liste" && (
-              <div className="flex flex-col gap-2 rounded-lg border bg-white p-4 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+              <div className="flex flex-col gap-2 rounded-lg border bg-white p-4 shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
                 {filteredMitglieder.map((m) => (
                   <div key={m.id} className="grid grid-cols-[1fr_1fr_auto] gap-4 text-sm text-foreground">
                     <span className="min-w-0 truncate">
@@ -708,7 +703,7 @@ export default function MitgliederPage() {
           </>
         )}
 
-        <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+        <Button asChild variant="outline" className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-semibold uppercase tracking-wide">
           <Link href="/">Zurück</Link>
         </Button>
         </div>
@@ -803,7 +798,7 @@ export default function MitgliederPage() {
                 <Button
                   type="submit"
                   disabled={createSaving}
-                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-blue/90"
                 >
                   {createSaving ? "Wird angelegt..." : "Anlegen"}
                 </Button>
@@ -995,7 +990,7 @@ export default function MitgliederPage() {
                 <Button
                   type="submit"
                   disabled={editSaving}
-                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+                  className="bg-brand-blue font-semibold uppercase tracking-wide text-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-blue/90"
                 >
                   {editSaving ? "Wird gespeichert..." : "Speichern"}
                 </Button>

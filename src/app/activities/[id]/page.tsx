@@ -12,6 +12,7 @@ import {
   startOfTodayIso,
   resolveRoleName,
   resolveMemberName,
+  normalizeTimeValue,
 } from "@/lib/activities";
 import type { ActivityCategory, ZeitbereichRole, Member } from "@/lib/activities";
 import type { ActivityRecord } from "@/lib/activity-form-schema";
@@ -25,6 +26,8 @@ const ACTIVITY_COLUMNS = "id, adalo_id, name, category, du_z, du_zbis, ort, besc
 type ZeitbereichSignupRow = {
   id: number;
   label: string;
+  von: string;
+  bis: string;
   benoetigt: number;
   kommen: number;
   roleRef: (string | number)[] | null;
@@ -178,7 +181,7 @@ export default function ActivityDetailPage() {
 
     const { data, error } = await supabase
       .from("einstellungen")
-      .select("id, zeitbereich, ben, rollen, eingeteilte_users")
+      .select("id, zeitbereich, ben, rollen, von, bis, eingeteilte_users")
       .or(activityFilters.join(","))
       .gt("ben", 0)
       .order("id", { ascending: true });
@@ -200,6 +203,8 @@ export default function ActivityDetailPage() {
           return {
             id: z.id,
             label: z.zeitbereich ?? "",
+            von: normalizeTimeValue(z.von),
+            bis: normalizeTimeValue(z.bis),
             benoetigt: z.ben ?? 0,
             kommen: refs.length,
             roleRef: z.rollen,
@@ -294,7 +299,7 @@ export default function ActivityDetailPage() {
 
         {activity && (
           <>
-            <div className="flex flex-col gap-3 rounded-lg border p-4">
+            <div className="flex flex-col gap-3 rounded-lg border bg-white p-4">
               <div className="flex flex-wrap items-center gap-3">
                 {resolveCategoryPicture(categories, activity.category) && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -304,21 +309,23 @@ export default function ActivityDetailPage() {
                     className="h-16 w-16 shrink-0 rounded-md object-cover"
                   />
                 )}
-                <Badge variant="secondary">{resolveCategoryName(categories, activity.category)}</Badge>
+                <Badge variant="secondary" className="text-[15px] font-bold">
+                  {resolveCategoryName(categories, activity.category)}
+                </Badge>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="text-[14px] font-bold uppercase tracking-wide text-brand-blue">
                   Datum &amp; Uhrzeit
                 </p>
-                <p className="text-sm text-foreground">{formatActivityRange(activity.du_z, activity.du_zbis)}</p>
+                <p className="pl-[3ch] text-sm text-foreground">{formatActivityRange(activity.du_z, activity.du_zbis)}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ort</p>
-                <p className="text-sm text-foreground">{activity.ort}</p>
+                <p className="text-[14px] font-bold uppercase tracking-wide text-brand-blue">Ort</p>
+                <p className="pl-[3ch] text-sm text-foreground">{activity.ort}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Beschreibung</p>
-                <p className="whitespace-pre-wrap text-sm text-foreground">
+                <p className="text-[14px] font-bold uppercase tracking-wide text-brand-blue">Beschreibung</p>
+                <p className="whitespace-pre-wrap pl-[3ch] text-sm text-foreground">
                   {activity.beschreibung || "Keine Beschreibung hinterlegt."}
                 </p>
               </div>
@@ -326,33 +333,18 @@ export default function ActivityDetailPage() {
               {isAdmin && (
                 <Button
                   asChild
-                  variant="outline"
-                  className="mt-2 w-fit font-semibold uppercase tracking-wide"
+                  className="mt-2 w-fit bg-brand-blue font-semibold uppercase tracking-wide text-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-blue/90"
                 >
                   <Link href={`/activities/${activity.id}/bearbeiten`}>Bearbeiten</Link>
                 </Button>
               )}
             </div>
 
-            {isAdmin && (
-              <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4">
-                <p className="text-sm font-semibold text-foreground">Zeitbereiche verwalten</p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button asChild variant="outline" className="w-fit font-semibold uppercase tracking-wide">
-                    <Link href={`/activities/${activity.id}/zeitbereiche`}>Zeitbereich hinzufügen</Link>
-                  </Button>
-                  <Link href="/rollen" className="text-sm font-medium text-brand-blue underline">
-                    Rollen verwalten
-                  </Link>
-                </div>
-              </div>
-            )}
-
             {showSignup && (
-              <div className="flex flex-col gap-3 rounded-lg border p-4">
+              <div className="flex flex-col gap-3 rounded-lg border bg-white p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-foreground">Anmeldung</p>
-                  <Button asChild variant="outline" size="sm" className="font-semibold uppercase tracking-wide">
+                  <Button asChild size="sm" className="bg-brand-blue font-semibold uppercase tracking-wide text-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:bg-brand-blue/90">
                     <Link href={`/activities/${activity.id}/uebersicht`}>Übersicht</Link>
                   </Button>
                 </div>
@@ -371,10 +363,15 @@ export default function ActivityDetailPage() {
 
                 <ul className="flex flex-col gap-3">
                   {signupRows.map((row) => (
-                    <li key={row.id} className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+                    <li key={row.id} className="flex flex-col gap-2 rounded-lg bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground">{row.label}</p>
+                          <p className="text-sm font-semibold text-foreground">
+                            {row.label}
+                            {row.von && row.bis && (
+                              <span className="font-normal text-muted-foreground"> · {row.von}–{row.bis} Uhr</span>
+                            )}
+                          </p>
                           <p className="text-xs text-muted-foreground">
                             {resolveRoleName(roles, row.roleRef)} · {row.kommen} von {row.benoetigt}
                           </p>
@@ -400,7 +397,7 @@ export default function ActivityDetailPage() {
           </>
         )}
 
-        <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+        <Button asChild variant="outline" className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-semibold uppercase tracking-wide">
           <Link href="/activities">Zurück zu Activities</Link>
         </Button>
         </div>

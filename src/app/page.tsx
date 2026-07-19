@@ -116,19 +116,19 @@ export default function Home() {
           <Button
             type="submit"
             disabled={loading}
-            className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+            className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
           >
             {loading ? "Wird eingeloggt..." : "Login"}
           </Button>
 
-          <Button asChild variant="accent" className="h-12 w-full font-semibold uppercase tracking-wide">
+          <Button asChild variant="accent" className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-semibold uppercase tracking-wide">
             <Link href="/register">Registrieren</Link>
           </Button>
 
           <Button
             asChild
             variant="outline"
-            className="h-12 w-full border-brand-gold font-semibold uppercase tracking-wide text-black hover:bg-brand-gold/10"
+            className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] border-brand-gold font-semibold uppercase tracking-wide text-black hover:bg-brand-gold/10"
           >
             <Link href="/forgot-password">Passwort vergessen</Link>
           </Button>

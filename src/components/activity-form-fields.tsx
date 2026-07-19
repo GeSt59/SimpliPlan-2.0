@@ -64,7 +64,10 @@ function DateTimeField({
           <Button
             type="button"
             variant="outline"
-            className={cn("flex-1 justify-start text-left font-normal", !value && "text-muted-foreground")}
+            className={cn(
+              "flex-1 justify-start border-brand-blue text-left font-normal focus:border-2 focus:border-brand-gold focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0",
+              !value && "text-muted-foreground"
+            )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {value ? format(value, "dd.MM.yyyy", { locale: de }) : "Datum wählen"}

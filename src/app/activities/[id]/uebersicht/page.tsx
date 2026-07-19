@@ -11,6 +11,7 @@ import {
   resolveMemberId,
   isMemberInRefs,
   computeSignupStatus,
+  normalizeTimeValue,
   SIGNUP_STATUS_ICON,
 } from "@/lib/activities";
 import type { ZeitbereichRole, Member } from "@/lib/activities";
@@ -40,6 +41,8 @@ type Signup = { ref: string | number; name: string; memberId: number | null };
 type UebersichtRow = {
   id: number;
   label: string;
+  von: string;
+  bis: string;
   roleRef: (string | number)[] | null;
   benoetigt: number;
   signups: Signup[];
@@ -156,7 +159,7 @@ export default function ActivityUebersichtPage() {
 
     const { data, error } = await supabase
       .from("einstellungen")
-      .select("id, zeitbereich, ben, rollen, eingeteilte_users")
+      .select("id, zeitbereich, ben, rollen, von, bis, eingeteilte_users")
       .or(activityFilters.join(","))
       .gt("ben", 0)
       .order("id", { ascending: true });
@@ -175,6 +178,8 @@ export default function ActivityUebersichtPage() {
           return {
             id: z.id,
             label: z.zeitbereich ?? "",
+            von: normalizeTimeValue(z.von),
+            bis: normalizeTimeValue(z.bis),
             roleRef: z.rollen,
             benoetigt: z.ben ?? 0,
             signups: refs
@@ -325,10 +330,15 @@ export default function ActivityUebersichtPage() {
               const status = computeSignupStatus(kommen, row.benoetigt);
               const icon = SIGNUP_STATUS_ICON[status];
               return (
-                <li key={row.id} className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+                <li key={row.id} className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
                   <div className="grid grid-cols-[1fr_3rem_3rem_3rem_2rem] items-center gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">{row.label}</p>
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {row.label}
+                        {row.von && row.bis && (
+                          <span className="font-normal text-muted-foreground"> · {row.von}–{row.bis} Uhr</span>
+                        )}
+                      </p>
                       <p className="truncate text-xs text-muted-foreground">{resolveRoleName(roles, row.roleRef)}</p>
                     </div>
                     <span className="text-center text-sm text-foreground">{kommen}</span>
@@ -376,7 +386,7 @@ export default function ActivityUebersichtPage() {
             })}
           </ul>
 
-          <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide print:hidden">
+          <Button asChild variant="outline" className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-semibold uppercase tracking-wide print:hidden">
             <Link href={`/activities/${activityId}`}>Zurück zur Anmeldung</Link>
           </Button>
         </div>

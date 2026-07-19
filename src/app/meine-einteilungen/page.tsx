@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
   computeSignupStatus,
@@ -181,7 +182,14 @@ export default function MeineEinteilungenPage() {
   return (
     <main className="flex min-h-screen justify-center bg-background">
       <div className="flex w-full max-w-[600px] flex-col pb-16">
-        <div className="bg-brand-blue px-4 py-3 text-center">
+        <div className="relative bg-brand-blue px-4 py-3 text-center">
+          <Link
+            href="/activities"
+            aria-label="Zurück zu Activities"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </Link>
           <h1 className="font-heading text-[21px] font-medium text-white">Meine Einteilungen</h1>
         </div>
 
@@ -194,7 +202,7 @@ export default function MeineEinteilungenPage() {
             <>
               <Button
                 onClick={() => setView((v) => (v === "kommend" ? "vergangen" : "kommend"))}
-                className="h-12 w-full gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+                className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] gap-2 bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
               >
                 {view === "kommend" ? "Vergangene anzeigen" : "Kommende anzeigen"}
               </Button>
@@ -218,7 +226,7 @@ export default function MeineEinteilungenPage() {
                   <Link
                     key={group.activityId}
                     href={`/activities/${group.activityId}`}
-                    className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
+                    className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">{group.name}</p>
@@ -244,7 +252,7 @@ export default function MeineEinteilungenPage() {
             </>
           )}
 
-          <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+          <Button asChild variant="outline" className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-semibold uppercase tracking-wide">
             <Link href="/profil">Zurück</Link>
           </Button>
         </div>

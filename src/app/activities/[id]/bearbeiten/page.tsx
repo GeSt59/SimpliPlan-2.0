@@ -210,7 +210,7 @@ export default function ActivityBearbeitenPage() {
             <Button
               type="submit"
               disabled={saving || !hasCategories}
-              className="h-12 w-full bg-brand-gold font-semibold uppercase tracking-wide text-black hover:bg-brand-gold/90"
+              className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] bg-brand-gold font-semibold uppercase tracking-wide text-black hover:bg-brand-gold/90"
             >
               {saving ? "Wird gespeichert..." : "Speichern und weiter zu den Zeitbereichen"}
             </Button>

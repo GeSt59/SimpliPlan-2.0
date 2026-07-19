@@ -90,7 +90,7 @@ export default function RegisterPage() {
           <p className="text-sm text-foreground">
             Registrierung erfolgreich! Du kannst dich jetzt einloggen.
           </p>
-          <Button asChild className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90">
+          <Button asChild className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90">
             <Link href="/">Zum Login</Link>
           </Button>
         </div>
@@ -196,12 +196,12 @@ export default function RegisterPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="h-12 w-full bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
+              className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] bg-brand-blue font-semibold uppercase tracking-wide text-white hover:bg-brand-blue/90"
             >
               {loading ? "Wird registriert..." : "Registrieren"}
             </Button>
 
-            <Button asChild variant="outline" className="h-12 w-full font-semibold uppercase tracking-wide">
+            <Button asChild variant="outline" className="h-12 w-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] font-semibold uppercase tracking-wide">
               <Link href="/">Zurück zum Login</Link>
             </Button>
           </div>

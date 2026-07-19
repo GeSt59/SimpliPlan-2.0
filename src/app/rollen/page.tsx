@@ -268,7 +268,7 @@ export default function RollenPage() {
         {!listLoading && rows.length > 0 && (
           <ul className="flex flex-col gap-3">
             {rows.map((row) => (
-              <li key={row.key} className="rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+              <li key={row.key} className="rounded-lg border bg-white p-3 shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
