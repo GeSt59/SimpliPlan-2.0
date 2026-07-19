@@ -1,8 +1,13 @@
 # PROJ-17: Info-Button (Activities) & About-Seite
 
-## Status: Approved
+## Status: Deployed
 **Created:** 2026-07-19
 **Last Updated:** 2026-07-19
+
+## Deployment
+- **Production URL:** https://simpliplan.toolies.eu/about
+- **Deployed:** 2026-07-19 via GitHub Actions-Äquivalent (manueller SSH-Pull + `npm ci` + `npm run build` + `pm2 reload SimpliPlan` auf dem Hetzner-Server)
+- Server-`HEAD` (`1d9afa9`) verifiziert identisch zu lokalem `HEAD`; `curl` gegen die Produktions-URL liefert 200 mit "SimpliPlan 2.0" im HTML
 
 > Hinweis: Dieses Feature wurde ohne vorherigen `/write-spec`-Durchlauf direkt implementiert (kleine, rein statische UI-Ergänzung, mit dem Nutzer abgestimmt). Dieser Spec wurde nachträglich angelegt, um Acceptance Criteria für QA/Deploy dokumentieren zu können.
 
