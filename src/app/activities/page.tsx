@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { List, Pencil, Plus, Trash2 } from "lucide-react";
+import { Info, List, Pencil, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { resolveCategoryPicture, formatActivityDateTime, startOfTodayIso } from "@/lib/activities";
 import type { ActivityCategory } from "@/lib/activities";
@@ -196,8 +196,12 @@ export default function ActivitiesPage() {
   return (
     <main className="flex min-h-screen justify-center bg-background">
       <div className="flex w-full max-w-[600px] flex-col pb-16">
-        <div className="bg-brand-blue px-4 py-3 text-center">
-          <h1 className="font-heading text-[21px] font-medium text-white">Activities</h1>
+        <div className="grid grid-cols-[2rem_1fr_2rem] items-center gap-3 bg-brand-blue px-4 py-3 text-white">
+          <Link href="/about" aria-label="Info">
+            <Info className="h-6 w-6" />
+          </Link>
+          <h1 className="text-center font-heading text-[21px] font-medium">Activities</h1>
+          <span />
         </div>
 
         <div className="flex w-full flex-1 flex-col gap-6 border border-gray-400 bg-gray-100 px-4 py-6">
